@@ -31,9 +31,11 @@ fi
 export GZ_SIM_SYSTEM_PLUGIN_PATH="$HOME/ardupilot_gazebo/build:${GZ_SIM_SYSTEM_PLUGIN_PATH:-}"
 export GZ_SIM_RESOURCE_PATH="$HIRRUS_DIR/models:$HIRRUS_DIR/worlds:$HOME/ardupilot_gazebo/models:$HOME/ardupilot_gazebo/worlds:${GZ_SIM_RESOURCE_PATH:-}"
 
-# -s: server-only, no native GUI window. That GUI needs a working X/Wayland
-# display (WSL's is often absent or flaky) and isn't needed here anyway --
-# the browser viewer (web_viewer/) is the intended way to see the sim.
+# -r: start running immediately. Domnesti-Slanic-5.world's own GUI config
+# sets <start_paused>true</start_paused>, and without -r the sim just sits
+# paused -- physics never steps, so ArduPilotPlugin never sends FDM data
+# and arduplane loops "No JSON sensor message received" forever, looking
+# like a connection problem when it's actually just a paused sim.
 #
 # Domnesti-Slanic-5.world lives one level under worlds/ (its own directory,
 # alongside its own mesh/ folder that its relative mesh URIs resolve
@@ -41,5 +43,4 @@ export GZ_SIM_RESOURCE_PATH="$HIRRUS_DIR/models:$HIRRUS_DIR/worlds:$HOME/ardupil
 # GZ_SIM_RESOURCE_PATH to find it, since that only lists worlds/ itself.
 WORLD_FILE="$HIRRUS_DIR/worlds/Domnesti-Slanic-5/Domnesti-Slanic-5.world"
 
-#exec gz sim -s -r -v4 "$WORLD_FILE"
-exec gz sim -v4 "$WORLD_FILE"
+exec gz sim -r -v4 "$WORLD_FILE"
