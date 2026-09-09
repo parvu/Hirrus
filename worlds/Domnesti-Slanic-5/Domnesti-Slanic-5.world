@@ -409,23 +409,25 @@
             <pose degrees="true">0 0 15 0 0 0</pose>
         </include>
 
-        <!-- Hirrus, resting on the ramp above. Z computed from the ramp's
-             own top surface (15 + half its 2m thickness = 16.0 -- see
-             launch_ramp/model.sdf's own comment for why it's 2m thick,
-             not the more obvious-looking 0.3m) plus this model's own
-             base_link_collision geometry: top-level <pose> lifts
-             base_link by 0.246m, and base_link_collision itself bottoms
-             out at local z=-0.05 -- so an include pose of Z sits its
-             collision box's bottom at Z+0.246-0.05 = Z+0.196. Solving
-             Z+0.196 = 16.0+0.03 (a 3cm clearance, avoiding
-             interpenetration at spawn) gives Z=15.83. Confirmed live in
-             an isolated repro (ramp + hirrus, no terrain) that this
-             settles rock-stable rather than falling through; not yet
-             separately reconfirmed with the real terrain mesh loaded
-             alongside it. -->
+        <!-- Hirrus, resting on the ramp above. Z=16.4: a generous 0.5m
+             margin above the ramp top (16.0) against the fuselage MESH's
+             own lowest point (measured off Hirrus.dae: local z min
+             -0.1341, +0.246 from this model's own top-level pose lift =
+             0.1119 absolute-to-model-origin) -- earlier versions of this
+             comment computed a tighter clearance against first the
+             invisible collision silhouette (Z=15.83, which buried most of
+             the actual visible mesh inside the 2m-thick ramp -- a real
+             contributor to "hirrus is just a grey box", though NOT the
+             only one: model.sdf's <submesh><name> tags were also wrong at
+             the time, see that file's own history) and then a tight 5cm
+             margin against the mesh itself (Z=15.94), but live settling
+             behavior didn't match either arithmetic's own predictions
+             closely enough to trust a tight margin -- this trades a
+             visible ~0.4m drop-and-settle for robustness against whatever
+             that discrepancy actually was. -->
         <include>
             <uri>model://hirrus</uri>
-            <pose degrees="true">0 0 15.83 0 0 0</pose>
+            <pose degrees="true">0 0 16.4 0 0 0</pose>
         </include>
 
     </world>

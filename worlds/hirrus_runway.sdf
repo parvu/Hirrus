@@ -68,19 +68,20 @@
     </include>
 
     <!-- Hirrus, resting on the ramp above, flat (not vertical like
-         Zephyr's tail-sitter takeoff). Z=0.83: ramp top (2m thick --
-         see launch_ramp/model.sdf's own comment for why, not the more
-         obvious-looking 0.3m -- centered at 0 -> top at 1.0) plus
-         base_link_collision's own bottom offset (-0.196 from an include
-         pose of 0, see Domnesti-Slanic-5.world's matching spawn-pose
-         comment for the full arithmetic) plus a 3cm clearance, same
-         derivation as there just with this world's ramp centered at
-         Z=0 instead of 15 (so ~1m of the ramp's own 2m thickness sits
-         below the runway plane -- harmless, nothing renders/collides
-         from below it anyway). -->
+         Zephyr's tail-sitter takeoff). Z=1.4: a generous 0.5m margin
+         above the ramp top (1.0) against the fuselage MESH's own lowest
+         point (measured off Hirrus.dae: local z min -0.1341, +0.246 from
+         this model's own top-level pose lift = 0.1119 absolute-to-
+         model-origin) -- not the tighter, precisely-computed clearance a
+         couple of prior versions of this comment used (0.83 against the
+         invisible collision box only, then 0.94 against the mesh with a
+         tight 5cm margin): live settling behavior didn't match that
+         arithmetic's own predictions closely enough to trust a tight
+         margin, so this trades a visible ~0.4m drop-and-settle for
+         robustness against whatever that discrepancy actually was. -->
     <include>
       <uri>model://hirrus</uri>
-      <pose degrees="true">0 0 0.83 0 0 0</pose>
+      <pose degrees="true">0 0 1.4 0 0 0</pose>
     </include>
   </world>
 </sdf>
