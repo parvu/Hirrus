@@ -49,6 +49,15 @@
                 name="gz::sim::systems::Magnetometer">
         </plugin>
 
+        <!-- Required for hirrus/model.sdf's manually-fired catapult launch
+             (see that file's own "Catapult launch" comment) -- this
+             plugin must be declared per-world, not per-model, confirmed
+             live ("ApplyLinkWrench system should be attached to a
+             world"). Any world flying this model needs this too. -->
+        <plugin filename="gz-sim-apply-link-wrench-system"
+                name="gz::sim::systems::ApplyLinkWrench">
+        </plugin>
+
         <light type="directional" name="sun">
             <cast_shadows>true</cast_shadows>
             <pose>0 -7000 7000 0 0 0</pose>

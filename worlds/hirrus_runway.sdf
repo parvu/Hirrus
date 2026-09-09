@@ -15,6 +15,12 @@
     <plugin filename="gz-sim-air-pressure-system" name="gz::sim::systems::AirPressure"></plugin>
     <plugin filename="gz-sim-magnetometer-system" name="gz::sim::systems::Magnetometer"></plugin>
     <plugin filename="gz-sim-navsat-system" name="gz::sim::systems::NavSat"></plugin>
+    <!-- Required for hirrus/model.sdf's manually-fired catapult launch
+         (see that file's own "Catapult launch" comment) -- this plugin
+         must be declared per-world, not per-model, confirmed live
+         ("ApplyLinkWrench system should be attached to a world"). Any
+         world flying this model needs this too. -->
+    <plugin filename="gz-sim-apply-link-wrench-system" name="gz::sim::systems::ApplyLinkWrench"></plugin>
 
     <scene>
       <ambient>1.0 1.0 1.0</ambient>

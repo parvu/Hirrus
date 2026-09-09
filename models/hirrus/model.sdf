@@ -536,27 +536,29 @@
     </plugin>
 
     <!-- Catapult launch: no landing gear means no rolling takeoff, so
-         base_link needs an external push to get above stall speed. First
-         approach here was a <persistent> wrench auto-cleared by a
-         wall-clock timer in run_sitl.sh -- dropped because gz sim's
-         <lock_step> freezes sim time until ArduPilot actually connects
-         (a separate terminal, unpredictable delay), so a wall-clock timer
-         races the sim clock and can clear the force before physics ever
-         ticks.
+         base_link needs an external push to get above stall speed. Fired
+         manually as a single one-physics-step instantaneous wrench (see
+         README.md's "Launch" section for the exact command) sized to
+         deliver the whole launch delta-v in that one step: impulse =
+         mass * target_v = 6.5kg * 20 m/s = 130 kg.m/s; force for a single
+         <max_step_size>0.001s step = impulse/dt = 130000 N. 20 m/s target
+         is a generous margin above any plausible stall speed for this
+         wing (no measured stall speed for Hirrus -- see model.config's
+         own aero-data comments); AIRSPEED_MIN=11 m/s was the figure used
+         for this airframe's tricopter VTOL variant. No persistent state,
+         no clear, no timing to get right -- the pilot fires it when
+         actually ready (armed, FBWA/MANUAL, throttle up), same as a real
+         catapult operator, not a clock.
 
-         Fired manually instead, as a single ONE-STEP instantaneous
-         wrench (see README.md's "Launch" section for the exact command)
-         sized to deliver the whole launch delta-v in that one physics
-         step: impulse = mass * target_v = 6.5kg * 20 m/s = 130 kg.m/s;
-         force for a single <max_step_size>0.001s step = impulse/dt =
-         130000 N. 20 m/s target is a generous margin above any plausible
-         stall speed for this wing (no measured stall speed for Hirrus --
-         see model.config's own aero-data comments); AIRSPEED_MIN=11 m/s
-         was the figure used for this airframe's tricopter VTOL variant.
-         No persistent state, no clear, no timing to get right -- the
-         pilot fires it when actually ready (armed, FBWA/MANUAL,
-         throttle up), same as a real catapult operator, not a clock. -->
-    <plugin filename="gz-sim-apply-link-wrench-system" name="gz::sim::systems::ApplyLinkWrench"></plugin>
+         gz-sim-apply-link-wrench-system itself is declared per-WORLD, not
+         here -- confirmed live ("ApplyLinkWrench system should be
+         attached to a world", ApplyLinkWrench.cc:149) after first trying
+         it as a model-level plugin like LiftDrag/ArduPilotPlugin above,
+         which was wrong. See worlds/hirrus_runway.sdf and
+         worlds/Domnesti-Slanic-5/Domnesti-Slanic-5.world for the actual
+         plugin declaration -- any NEW world flying this model needs that
+         plugin added too, or the launch command above will silently have
+         no listener. -->
 
     <plugin name="ArduPilotPlugin" filename="ArduPilotPlugin">
       <fdm_addr>127.0.0.1</fdm_addr>

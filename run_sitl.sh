@@ -41,4 +41,5 @@ export GZ_SIM_RESOURCE_PATH="$HIRRUS_DIR/models:$HIRRUS_DIR/worlds:$HOME/ardupil
 # GZ_SIM_RESOURCE_PATH to find it, since that only lists worlds/ itself.
 WORLD_FILE="$HIRRUS_DIR/worlds/Domnesti-Slanic-5/Domnesti-Slanic-5.world"
 
-exec gz sim -s -r -v4 "$WORLD_FILE"
+#exec gz sim -s -r -v4 "$WORLD_FILE"
+exec gz sim -v4 "$WORLD_FILE"
