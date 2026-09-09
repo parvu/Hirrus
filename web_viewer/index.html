@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset='utf-8' />
+    <title>Hirrus Web Viewer</title>
+  <script src='protobuf.min.js'></script>
+  <script src='eventemitter2.min.js'></script>
+  <script src='gz.js'></script>
+  <script src='gz3d.js'></script>
+
+  <script>
+    // Ported from AeroCanyon_Guard/web_viewer/index.html, trimmed to what
+    // a plain ArduPlane flying wing needs: no wind-field arrows/readout
+    // (no wind_field_node here), no VTOL mode buttons (QHOVER/QLAND/
+    // transition/stick_mixing don't exist on this airframe). Scene-loading
+    // machinery (createModelFromMsg/createGeom/parseMaterial etc.) is
+    // otherwise unchanged generic gz3d glue.
+    //
+    // Uses location.hostname so it adapts to whatever host the page itself
+    // was loaded from (localhost, a LAN IP, etc.) instead of hardcoding one.
+    var gz = new Gazebo({
+      url: 'ws://' + location.hostname + ':9002',
+      key: "hirrus_dev"
+    });
+
+    var poseSub = null;
+
+    gz.on('connection', function() {
+      var statusText = document.getElementById('statusText');
+      statusText.innerHTML = 'Status: connected';
+    });
+
+    // _worlds is the actual list of worlds gz-launch's WebsocketServer is
+    // bridging, straight from the server -- worlds[0] is real, not a guess.
+    gz.on('worlds', function(_worlds) {
+      var worldName = _worlds[0];
+
+      gz.once('scene', function(_sceneInfo) {
+        for (var i = 0; i < _sceneInfo.model.length; ++i) {
+          var modelObj = createModelFromMsg(_sceneInfo.model[i]);
+          scene.add(modelObj);
+        }
+      });
+      gz.socket.send(buildMsg(['scene', worldName, '', '']));
+
+      poseSub = new Topic({
+        gz: gz,
+        name: '/world/' + worldName + '/dynamic_pose/info',
+        messageType: 'gz.msgs.Pose_V',
+        callback: function(msg) {
+          for (var i = 0; i < msg.pose.length; ++i) {
+            var entity = scene.getByName(msg.pose[i].name);
+            if (entity && entity !== scene.modelManipulator.object
+                && entity.parent !== scene.modelManipulator.object) {
+              scene.updatePose(entity, msg.pose[i].position,
+                msg.pose[i].orientation);
+              // Follow toggle (default on) -- opt-out via the button.
+              if (msg.pose[i].name === 'hirrus' && followCamera) {
+                pointCameraAt(entity);
+              }
+            }
+          }
+        }
+      });
+    });
+
+    // Create the clock subscriber
+    var clockSub = new Topic({
+      gz: gz,
+      name: '/clock',
+      messageType : 'gz.msgs.Clock',
+      callback: function(msg) {
+        var output = document.getElementById('output');
+        output.innerHTML = 'Clock: ' + msg.sim.sec + '.' + msg.sim.nsec;
+      }
+    });
+
+    var camera, renderer;
+
+    // Initialize GZ3D objects.
+    const shaders = new GZ3D.Shaders();
+    var scene = new GZ3D.Scene(shaders);
+    var sdfParser = new GZ3D.SdfParser(scene);
+    const ogre2json = new GZ3D.Ogre2Json();
+
+    entityMaterial = {};
+    protocol = "http:";
+    // location.host already carries the real hostname:port this page was
+    // served from -- parseMaterial() below builds asset URLs from this.
+    url = location.host;
+
+    function init() {
+      scene.grid.visible = false;
+      var sceneElement = window.document.getElementById('container');
+      if (sceneElement === undefined || sceneElement === null) {
+        console.log("Invalid scene element");
+      }
+
+      sceneElement.appendChild(scene.renderer.domElement);
+      scene.setSize(sceneElement.clientWidth, sceneElement.clientHeight);
+
+      (function hideSunHelper(tries) {
+        var h = scene.scene.getObjectByName('sun_lightHelper');
+        if (h) { h.visible = false; return; }
+        if (tries > 0) { setTimeout(function () { hideSunHelper(tries - 1); }, 500); }
+      })(20);
+
+      resetCameraPose();
+      animate();
+    }
+
+    function resetCameraPose(tries) {
+      // Points at the vehicle's actual spawn pose, read live off the scene
+      // graph rather than hardcoded -- see hirrus_runway.sdf's own include
+      // pose for where that actually is.
+      const hirrus = scene.getByName('hirrus');
+      if (!hirrus) {
+        if (tries === undefined) tries = 20;
+        if (tries > 0) { setTimeout(function () { resetCameraPose(tries - 1); }, 500); }
+        return;
+      }
+      pointCameraAt(hirrus);
+    }
+
+    // Shared camera placement, fixed offset behind/above the target.
+    function pointCameraAt(entity) {
+      const p = entity.position;
+      const cam = scene.camera;
+      cam.position.set(p.x + 3.0, p.y + 0.63, p.z + 1.90);
+      // This vendored three.js build (r86, see gz3d.js) only supports
+      // Object3D.lookAt(vector), not the (x,y,z) numbers form -- passing
+      // raw numbers silently corrupts the camera's quaternion into NaN.
+      cam.lookAt(new THREE.Vector3(p.x, p.y, p.z + 0.146));
+    }
+
+    var followCamera = true;
+    function toggleFollow() {
+      followCamera = !followCamera;
+      document.getElementById('followBtn').textContent =
+        'follow: ' + (followCamera ? 'on' : 'off');
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      scene.render();
+    }
+
+    function createModelFromMsg(model)
+    {
+      var modelObj = new THREE.Object3D();
+      modelObj.name = model.name;
+      modelObj.userData.id = model.id;
+      if (model.pose) {
+        scene.setPose(modelObj,
+          model.pose.position, model.pose.orientation);
+      }
+      for (var j = 0; j < model.link.length; ++j)
+      {
+        var link = model.link[j];
+        var linkObj = new THREE.Object3D();
+        linkObj.name = link.name;
+        linkObj.userData.id = link.id;
+        linkObj.serverProperties =
+            {
+              self_collide: link.self_collide,
+              gravity: link.gravity,
+              kinematic: link.kinematic
+            };
+
+        if (link.inertial)
+        {
+          var inertialPose, inertialMass, inertia = {};
+          linkObj.userData.inertial = {};
+          inertialPose = link.inertial.pose;
+          inertialMass = link.inertial.mass;
+          inertia.ixx = link.inertial.ixx;
+          inertia.ixy = link.inertial.ixy;
+          inertia.ixz = link.inertial.ixz;
+          inertia.iyy = link.inertial.iyy;
+          inertia.iyz = link.inertial.iyz;
+          inertia.izz = link.inertial.izz;
+          linkObj.userData.inertial.inertia = inertia;
+          if (inertialMass) {
+            linkObj.userData.inertial.mass = inertialMass;
+          }
+          if (inertialPose) {
+            linkObj.userData.inertial.pose = inertialPose;
+          }
+        }
+
+        if (link.pose) {
+          scene.setPose(linkObj, link.pose.position,
+              link.pose.orientation);
+        }
+        modelObj.add(linkObj);
+        for (var k = 0; k < link.visual.length; ++k)
+        {
+          var visual = link.visual[k];
+          var visualObj = createVisualFromMsg(visual);
+          if (visualObj && !visualObj.parent) {
+            linkObj.add(visualObj);
+          }
+        }
+
+        for (var l = 0; l < link.collision.length; ++l) {
+          var collision = link.collision[l];
+          for (var m = 0; m < link.collision[l].visual.length; ++m) {
+            var collisionVisual = link.collision[l].visual[m];
+            var collisionVisualObj = createVisualFromMsg(collisionVisual);
+            if (collisionVisualObj && !collisionVisualObj.parent) {
+              linkObj.add(collisionVisualObj);
+            }
+          }
+        }
+      }
+
+      if (model.joint) {
+        modelObj.joint = model.joint;
+      }
+
+      return modelObj;
+    }
+
+    function createVisualFromMsg(visual)
+    {
+      if (visual.geometry)
+      {
+        var geom = visual.geometry;
+        var visualObj = new THREE.Object3D();
+        visualObj.name = visual.name;
+        if (visual.pose)
+        {
+          scene.setPose(visualObj, visual.pose.position,
+              visual.pose.orientation);
+        }
+
+        visualObj.castShadow = visual.cast_shadows;
+        visualObj.receiveShadow = visual.receive_shadows;
+
+        createGeom(geom, visual.material, visualObj);
+
+        return visualObj;
+      }
+    }
+
+    function parseMaterial(material)
+    {
+      if (!material) {
+        return null;
+      }
+
+      var uriPath = protocol + '//' + url + '/assets';
+      var texture;
+      var normalMap;
+      var textureUri;
+      var ambient;
+      var diffuse;
+      var specular;
+      var opacity;
+      var scale;
+      var mat;
+
+      var script  = material.script;
+      if (script) {
+        if (script.name) {
+          mat = material[script.name];
+          if (mat) {
+            ambient = mat['ambient'];
+            diffuse = mat['diffuse'];
+            specular = mat['specular'];
+            opacity = mat['opacity'];
+            scale = mat['scale'];
+
+            var textureName = mat['texture'];
+            if (textureName) {
+              for (var i = 0; i < script.uri.length; ++i) {
+                var scriptUri = script.uri[i];
+                if (scriptUri === '__default__')
+                {
+                  scriptUri = 'file://media/materials/scripts/gazebo.material';
+                }
+
+                var type = scriptUri.substring(0,
+                      scriptUri.indexOf('://'));
+
+                if (type === 'model')
+                {
+                  if (scriptUri.indexOf('textures') > 0)
+                  {
+                    textureUri = scriptUri.substring(
+                        scriptUri.indexOf('://') + 3);
+                    break;
+                  }
+                }
+                else if (type === 'file')
+                {
+                  if (scriptUri.indexOf('materials') > 0)
+                  {
+                    textureUri = scriptUri.substring(
+                        scriptUri.indexOf('://') + 3,
+                        scriptUri.indexOf('materials') + 9) + '/textures';
+                    break;
+                  }
+                }
+              }
+              if (textureUri)
+              {
+                texture = uriPath + '/' +
+                    textureUri  + '/' + textureName;
+              }
+            }
+          }
+        }
+      }
+
+      function colorToArray(c) {
+        return c ? [c.r, c.g, c.b] : undefined;
+      }
+      if (!ambient && material.ambient) {
+        ambient = colorToArray(material.ambient);
+      }
+      if (!diffuse && material.diffuse) {
+        diffuse = colorToArray(material.diffuse);
+      }
+      if (!specular && material.specular) {
+        specular = colorToArray(material.specular);
+      }
+      if (opacity === undefined && material.diffuse &&
+          material.diffuse.a !== undefined && material.diffuse.a < 1) {
+        opacity = material.diffuse.a;
+      }
+
+      if (material.normal_map) {
+        var mapUri;
+        if (material.normal_map.indexOf('://') > 0)
+        {
+          mapUri = material.normal_map.substring(
+              material.normal_map.indexOf('://') + 3,
+              material.normal_map.lastIndexOf('/'));
+        }
+        else
+        {
+          mapUri = textureUri;
+        }
+        if (mapUri)
+        {
+          var startIndex = material.normal_map.lastIndexOf('/') + 1;
+          if (startIndex < 0)
+          {
+            startIndex = 0;
+          }
+          var normalMapName = material.normal_map.substr(startIndex,
+              material.normal_map.lastIndexOf('.') - startIndex);
+          normalMap = uriPath + '/' +
+            mapUri  + '/' + normalMapName + '.png';
+        }
+      }
+
+      return {
+          texture: texture,
+          normalMap: normalMap,
+          ambient: ambient,
+          diffuse: diffuse,
+          specular: specular,
+          opacity: opacity,
+          scale: scale
+      };
+    }
+
+    function createGeom (geom, material, parent)
+    {
+      var obj;
+      var uriPath = 'assets';
+      var that = this;
+      var mat = parseMaterial(material);
+
+      if (geom.box)
+      {
+        obj = scene.createBox(geom.box.size.x, geom.box.size.y,
+            geom.box.size.z);
+      }
+      else if (geom.cylinder)
+      {
+        obj = scene.createCylinder(geom.cylinder.radius,
+            geom.cylinder.length);
+      }
+      else if (geom.sphere)
+      {
+        obj = scene.createSphere(geom.sphere.radius);
+      }
+      else if (geom.plane)
+      {
+        obj = scene.createPlane(geom.plane.normal.x, geom.plane.normal.y,
+            geom.plane.normal.z, geom.plane.size.x, geom.plane.size.y);
+      }
+      else if (geom.mesh)
+      {
+        var rootModel = parent;
+        while (rootModel.parent)
+        {
+          rootModel = rootModel.parent;
+        }
+
+        {
+          var meshUri = geom.mesh.filename;
+          var submesh = geom.mesh.submesh;
+          var centerSubmesh = geom.mesh.center_submesh;
+
+          var uriType = meshUri.substring(0, meshUri.indexOf('://'));
+          var modelName = '';
+          if (uriType === 'file' || uriType === 'model' || uriType === 'models')
+          {
+            modelName = meshUri.substring(meshUri.indexOf('://') + 3);
+          }
+          else if (meshUri.length > 0 && meshUri[0] === '/')
+          {
+            var idx = meshUri.indexOf('/meshes/');
+            if (idx > 1)
+            {
+              modelName = meshUri.substring(meshUri.lastIndexOf('/', idx-1));
+            }
+          }
+          if (modelName.length > 0)
+          {
+            if (geom.mesh.scale)
+            {
+              parent.scale.x = geom.mesh.scale.x;
+              parent.scale.y = geom.mesh.scale.y;
+              parent.scale.z = geom.mesh.scale.z;
+            }
+
+            var modelUri = uriPath + '/' + modelName;
+            if (modelUri.indexOf('.dae') !== -1 && isTouchDevice)
+            {
+              modelUri = modelUri.substring(0,modelUri.indexOf('.dae'));
+
+              var checkModel = new XMLHttpRequest();
+              checkModel.open('HEAD', modelUri+'_coarse.dae', false);
+              checkModel.send();
+              if (checkModel.status === 404)
+              {
+                modelUri = modelUri+'.dae';
+              }
+              else
+              {
+                modelUri = modelUri+'_coarse.dae';
+              }
+            }
+
+            var ext = modelUri.substr(-4).toLowerCase();
+            var materialName = parent.name + '::' + modelUri;
+            entityMaterial[materialName] = mat;
+
+            modelUri = protocol + '//' + url + '/' + modelUri;
+
+            scene.loadMeshFromUri(modelUri, submesh, centerSubmesh,
+              function(mesh) {
+                if (mat)
+                {
+                  if (modelUri.indexOf('.stl') === -1)
+                  {
+                    var allChildren = [];
+                    mesh.getDescendants(allChildren);
+                    for (var c = 0; c < allChildren.length; ++c)
+                    {
+                      if (allChildren[c] instanceof THREE.Mesh)
+                      {
+                        that.scene.setMaterial(allChildren[c], mat);
+                      }
+                    }
+                  }
+                  else
+                  {
+                    that.scene.setMaterial(mesh, mat);
+                  }
+                }
+                else
+                {
+                  if (ext === '.stl')
+                  {
+                    that.scene.setMaterial(mesh, {'ambient': [1,1,1,1]});
+                  }
+                }
+                parent.add(mesh);
+                loadGeom(parent);
+            });
+          }
+        }
+      }
+      else if (geom.heightmap)
+      {
+        var request = new ROSLIB.ServiceRequest({
+          name : that.scene.name
+        });
+
+        var textures = geom.heightmap.texture;
+        for ( var k = 0; k < textures.length; ++k)
+        {
+          textures[k].diffuse = parseUri(textures[k].diffuse);
+          textures[k].normal = parseUri(textures[k].normal);
+        }
+
+        var sizes = geom.heightmap.size;
+
+        heightmapDataService.callService(request,
+            function(result)
+            {
+              var heightmap = result.heightmap;
+              that.scene.loadHeightmap(heightmap.heights, heightmap.size.x,
+                  heightmap.size.y, heightmap.width, heightmap.height,
+                  heightmap.origin, textures,
+                  geom.heightmap.blend, parent);
+            });
+      }
+
+      if (obj)
+      {
+        if (mat)
+        {
+          scene.setMaterial(obj, mat);
+        }
+        obj.updateMatrix();
+        parent.add(obj);
+        loadGeom(parent);
+      }
+
+      function loadGeom(visualObj)
+      {
+        var allChildren = [];
+        visualObj.getDescendants(allChildren);
+        for (var c = 0; c < allChildren.length; ++c)
+        {
+          if (allChildren[c] instanceof THREE.Mesh)
+          {
+            allChildren[c].castShadow = true;
+            allChildren[c].receiveShadow = true;
+
+            if (visualObj.castShadows)
+            {
+              allChildren[c].castShadow = visualObj.castShadows;
+            }
+            if (visualObj.receiveShadows)
+            {
+              allChildren[c].receiveShadow = visualObj.receiveShadows;
+            }
+
+            if (visualObj.name.indexOf('COLLISION_VISUAL') >= 0)
+            {
+              allChildren[c].castShadow = false;
+              allChildren[c].receiveShadow = false;
+
+              allChildren[c].visible = scene.showCollisions;
+            }
+            break;
+          }
+        }
+      }
+    }
+
+    function parseUri(uri) {
+      var uriPath = 'assets';
+      var idx = uri.indexOf('://');
+      if (idx > 0)
+      {
+        idx +=3;
+      }
+      return uriPath + '/' + uri.substring(idx);
+    }
+  </script>
+  </head>
+
+  <body onload="init()">
+    <div id='status' style="position: fixed; bottom: 0; left: 0; right: 0;
+        background: white; font-family: sans-serif; padding: 4px 10px;
+        z-index: 9999; display: flex; justify-content: space-between;">
+      <span id='statusText'>Status: disconnected</span>
+      <span id='output'></span>
+    </div>
+
+    <div id="container" style="height: 800px; position: relative; z-index: 0;">
+    </div>
+
+    <!-- Manual controls: control_server.py's /api/stick takes proportional
+         Mode 2 RC stick axes (yaw/throttle/roll/pitch, each -1..1),
+         continuously streamed at STICK_SEND_HZ below while a stick is
+         touched -- not a click-and-decay nudge. -->
+    <div id="virtualSticks">
+      <div id="leftStick" class="stickPad" style="position: fixed; top: 10px; left: 10px;">
+        <div class="stickKnob"></div>
+      </div>
+      <div id="rightStick" class="stickPad" style="position: fixed; top: 10px; left: 160px;">
+        <div class="stickKnob"></div>
+      </div>
+    </div>
+    <div id="rcStatusText" style="position: fixed; top: 160px; left: 10px;
+        font-family: sans-serif; font-size: 12px; z-index: 10;
+        background: rgba(0,0,0,0.5); color: #fff; padding: 2px 6px;
+        border-radius: 3px;">checking for RC...</div>
+    <style>
+      .stickPad {
+        width: 140px; height: 140px; border-radius: 50%;
+        background: rgba(0,0,0,0.15); border: 1px solid rgba(0,0,0,0.3);
+        touch-action: none; z-index: 10; user-select: none;
+      }
+      .stickKnob {
+        width: 48px; height: 48px; border-radius: 50%;
+        background: rgba(40,40,40,0.7); position: relative;
+        left: 46px; top: 46px; pointer-events: none;
+      }
+    </style>
+
+    <!-- ArduPlane mode set: no QHOVER/QLAND/transition (VTOL-only, this
+         airframe has no Q_FRAME) -- CIRCLE is the "let go and it holds"
+         mode instead (same as ardupilot_gazebo's own Zephyr example:
+         arm, fbwa, throttle up, circle). Landing on this airframe needs a
+         mission LAND item (AUTO), not a single mode switch. -->
+    <div id="missionControls" style="position: fixed; top: 10px; left: 50%;
+        transform: translateX(-50%); font-family: sans-serif; z-index: 10;
+        display: flex; gap: 4px;">
+      <button onclick="manualCmd('arm')">arm</button>
+      <button onclick="manualCmd('disarm')">disarm</button>
+      <button onclick="manualCmd('fbwa')">FBWA</button>
+      <button onclick="manualCmd('circle')">CIRCLE</button>
+      <button onclick="manualCmd('auto')">AUTO</button>
+      <button onclick="manualCmd('rtl')">RTL</button>
+      <button onclick="confirmManual()" style="background:#611;color:#fff;">MANUAL (raw passthrough)</button>
+      <button id="followBtn" onclick="toggleFollow()">follow: on</button>
+    </div>
+
+    <script>
+      function manualCmd(cmd) {
+        fetch('/api/manual?cmd=' + cmd);
+      }
+      // MANUAL is the emergency "true" passthrough -- no stabilization,
+      // raw sticks straight to the elevons/throttle. One accidental click
+      // here isn't like an accidental AUTO/RTL click, so it gets a
+      // confirm() gate the other mode buttons don't.
+      function confirmManual() {
+        if (confirm('MANUAL mode: raw stick passthrough, no stabilization. Continue?')) {
+          manualCmd('manual');
+        }
+      }
+
+      // Mode 2 dual-stick input: each pad reports a normalized (x, y) in
+      // [-1, 1], continuously streamed to /api/stick when no physical RC
+      // is present (see updateRcStatus). Vertical Y is "up on screen =
+      // +1" (throttle/pitch stick convention), same as a real
+      // transmitter, so DOM's down-is-positive pixel Y gets negated below.
+      // Every axis self-centers to 0 on release except the left stick's Y
+      // (throttle).
+      var sticks = { left: { x: 0, y: 0 }, right: { x: 0, y: 0 } };
+
+      function setupStick(padId, key, opts) {
+        opts = opts || {};
+        var pad = document.getElementById(padId);
+        var knob = pad.querySelector('.stickKnob');
+        var radius = pad.clientWidth / 2;
+        var knobRadius = knob.clientWidth / 2;
+        var activePointerId = null;
+        // Throttle (left stick's Y only): unlike every other axis, a real
+        // Mode 2 transmitter's throttle gimbal is ratcheted (friction-held),
+        // not spring-loaded -- it stays wherever it's left rather than
+        // snapping back to centre, and idle sits at the BOTTOM of its
+        // travel by default, not centre.
+        var noSpringY = !!opts.noSpringY;
+
+        function setKnob(x, y) {
+          sticks[key].x = x;
+          sticks[key].y = y;
+          knob.style.left = (radius + x * (radius - knobRadius) - knobRadius) + 'px';
+          knob.style.top = (radius - y * (radius - knobRadius) - knobRadius) + 'px';
+        }
+
+        function updateFromEvent(ev) {
+          var rect = pad.getBoundingClientRect();
+          var dx = (ev.clientX - rect.left - radius) / (radius - knobRadius);
+          var dy = -(ev.clientY - rect.top - radius) / (radius - knobRadius);
+          var mag = Math.hypot(dx, dy);
+          if (mag > 1) { dx /= mag; dy /= mag; }
+          setKnob(dx, dy);
+        }
+
+        pad.addEventListener('pointerdown', function (ev) {
+          activePointerId = ev.pointerId;
+          pad.setPointerCapture(ev.pointerId);
+          updateFromEvent(ev);
+        });
+        pad.addEventListener('pointermove', function (ev) {
+          if (ev.pointerId === activePointerId) updateFromEvent(ev);
+        });
+        function release(ev) {
+          if (ev.pointerId !== activePointerId) return;
+          activePointerId = null;
+          if (noSpringY) {
+            setKnob(0, sticks[key].y);  // yaw (x) self-centers, throttle (y) stays put
+          } else {
+            setKnob(0, 0);  // self-centering, like a real Mode 2 stick
+          }
+        }
+        pad.addEventListener('pointerup', release);
+        pad.addEventListener('pointercancel', release);
+
+        setKnob(0, noSpringY ? -1 : 0);  // throttle defaults to idle/bottom, not centre
+      }
+      setupStick('leftStick', 'left', { noSpringY: true });
+      setupStick('rightStick', 'right');
+
+      // Continuous stream, matching a real transmitter's telemetry rate --
+      // not just on change, so control_server.py's STICK_TIMEOUT_S
+      // dead-man's-switch never trips while a stick is centered but the
+      // page is still open and connected. Skipped entirely while a
+      // physical RC is present (rcPresent below).
+      var rcPresent = false;
+      var STICK_SEND_HZ = 20;
+      setInterval(function () {
+        if (rcPresent) return;
+        var params = new URLSearchParams({
+          yaw: sticks.left.x.toFixed(3),
+          throttle: sticks.left.y.toFixed(3),
+          roll: sticks.right.x.toFixed(3),
+          pitch: sticks.right.y.toFixed(3),
+        });
+        fetch('/api/stick?' + params.toString());
+      }, 1000 / STICK_SEND_HZ);
+
+      // Polls control_server.py's own view of whether a physical
+      // transmitter bridge has posted recently -- no such bridge is wired
+      // up here yet, so this always reports present=False and the virtual
+      // sticks always show; kept so one can be added later without an
+      // index.html change.
+      function updateRcStatus() {
+        fetch('/api/rc_status')
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            rcPresent = data.present;
+            document.getElementById('virtualSticks').hidden = rcPresent;
+            document.getElementById('rcStatusText').textContent =
+              rcPresent ? 'RC: physical transmitter connected'
+                        : 'RC: none detected -- using on-screen sticks';
+          })
+          .catch(function () { /* server not up yet -- try again next poll */ });
+      }
+      updateRcStatus();
+      setInterval(updateRcStatus, 500);
+    </script>
+  </body>
+</html>

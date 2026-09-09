@@ -1,0 +1,702 @@
+<?xml version="1.0" ?>
+<sdf version="1.9">
+  <model name="hirrus">
+    <!-- Ground clearance from the landing-gear legs below, reused verbatim
+         from tricopter_ap/model.sdf (same gear geometry, same airframe). -->
+    <pose>0 0 0.246 0 0 0</pose>
+    <link name="base_link">
+      <enable_wind>true</enable_wind>
+      <pose>0 0 0 0 0 0</pose>
+      <inertial>
+        <!-- Mass/inertia/CG from Hirrus.avl's own AVL run (~/Hirrus/Polara.txt,
+             a Type-7 stability analysis with a loaded mass file), not a
+             guess: Mass=14.330 lb, CoG=(0.1431, 0, -0.02155) ft, Ixx/Iyy/
+             Izz/Ixz=(28.79, 12.91, 41.67, -0.02858) lb.ft^2, converted to
+             SI below. This SUPERSEDES tricopter_ap's own CG derivation
+             (which used the .avl file's Xref/Yref/Zref -- the aerodynamic
+             moment reference point AVL defaults to, not the mass file's
+             actual CG; Polara.txt shows those are NOT the same point here,
+             43.6mm vs 260mm aft of the root LE).
+
+             Position: same mesh-alignment method as tricopter_ap (root-band
+             leading edge measured on Hirrus.dae at model-frame x=+0.193,
+             z=-0.08, see that file's own base_link_visual comment) minus
+             the AVL-frame CoG offset from that same LE point:
+               x = 0.193 - 0.043617 = 0.149383
+               z = -0.08 + (-0.006568) = -0.086568
+             Ixx/Iyy/Izz map straight across (both mesh<->AVL frames agree
+             on which physical axis is roll/pitch/yaw, only X and Y flip
+             sign via the 180deg yaw below) -- diagonal moments are
+             sign-invariant. Ixz picks up one sign flip (X flips, Z
+             doesn't): +0.001204, not -0.001204.
+             Sanity check: Izz(1.756) = Ixx(1.213)+Iyy(0.544) to 3 decimal
+             places, exactly the thin-flat-body identity for a tailless
+             flying wing with (almost) no mass out of the wing plane --
+             good evidence this mass file is real and self-consistent.
+
+             CAVEAT, not silently resolved: this CG sits ~0.26m ahead of
+             tricopter_ap's own neutral-point estimate (x=-0.109, area-
+             weighted quarter-chord of the two wing panels) -- a ~84% MAC
+             static margin, far outside the normal 5-15% MAC range for a
+             tailless design. Either that NP estimate doesn't hold once
+             the wing's real cla (below) replaces the old placeholder, or
+             this specific AVL run's mass file reflects a deliberately
+             very-forward/hand-launch-safe CG rather than a cruise-
+             optimized one -- not something to guess past. Fly FBWA
+             straight-and-level and trim from here, same as any real
+             aircraft's first CG check (same advice tricopter_ap's own CG
+             comment gives). -->
+        <pose>0.149383 0 -0.086568 0 0 0</pose>
+        <mass>6.500</mass>
+        <inertia>
+          <ixx>1.213214</ixx>
+          <ixy>0</ixy>
+          <ixz>0.001204</ixz>
+          <iyy>0.544029</iyy>
+          <iyz>0</iyz>
+          <izz>1.755978</izz>
+        </inertia>
+      </inertial>
+      <!-- Silhouette collision box, reused verbatim from tricopter_ap
+           (real Hirrus geometry, not VTOL-specific): full span ~3.28m,
+           nose-to-trailing-edge ~1.18m, thin ground-contact-only slab. -->
+      <collision name="base_link_collision">
+        <pose>-0.06 0 -0.02 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.18 3.28 0.06</size>
+          </box>
+        </geometry>
+        <surface>
+          <contact>
+            <ode>
+              <kp>100000</kp>
+              <kd>1.0</kd>
+              <max_vel>0.1</max_vel>
+              <min_depth>0.001</min_depth>
+            </ode>
+          </contact>
+          <friction>
+            <ode />
+          </friction>
+        </surface>
+      </collision>
+      <!-- 5 per-part submesh visuals (fuselage, both wing panels, both
+           elevons), same 180deg-yaw mounting as tricopter_ap (that flip
+           both points the mesh's own nose at +X and lands aripa_dr/
+           aripa_stg on -Y/+Y matching this model's convention). "elice"
+           (the mesh's own fixed prop) deliberately excluded here -- it's
+           rendered instead on the separate, physics-driven "propeller"
+           link below. -->
+      <visual name="base_link_visual_fuselage">
+        <pose>0 0 0 0 0 3.14159265</pose>
+        <geometry>
+          <mesh>
+            <uri>model://hirrus/meshes/Hirrus.dae</uri>
+            <submesh>
+              <name>fuselaj</name>
+            </submesh>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>1.0 1.0 1.0 1.0</ambient>
+          <diffuse>1.0 1.0 1.0 1.0</diffuse>
+        </material>
+      </visual>
+      <visual name="base_link_visual_wing_left">
+        <pose>0 0 0 0 0 3.14159265</pose>
+        <geometry>
+          <mesh>
+            <uri>model://hirrus/meshes/Hirrus.dae</uri>
+            <submesh>
+              <name>aripa_stg</name>
+            </submesh>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>1.0 1.0 1.0 1.0</ambient>
+          <diffuse>1.0 1.0 1.0 1.0</diffuse>
+        </material>
+      </visual>
+      <visual name="base_link_visual_wing_right">
+        <pose>0 0 0 0 0 3.14159265</pose>
+        <geometry>
+          <mesh>
+            <uri>model://hirrus/meshes/Hirrus.dae</uri>
+            <submesh>
+              <name>aripa_dr</name>
+            </submesh>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>1.0 1.0 1.0 1.0</ambient>
+          <diffuse>1.0 1.0 1.0 1.0</diffuse>
+        </material>
+      </visual>
+      <visual name="base_link_visual_elevon_left">
+        <pose>0 0 0 0 0 3.14159265</pose>
+        <geometry>
+          <mesh>
+            <uri>model://hirrus/meshes/Hirrus.dae</uri>
+            <submesh>
+              <name>eleron_stg</name>
+            </submesh>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>1.0 1.0 1.0 1.0</ambient>
+          <diffuse>1.0 1.0 1.0 1.0</diffuse>
+        </material>
+      </visual>
+      <visual name="base_link_visual_elevon_right">
+        <pose>0 0 0 0 0 3.14159265</pose>
+        <geometry>
+          <mesh>
+            <uri>model://hirrus/meshes/Hirrus.dae</uri>
+            <submesh>
+              <name>eleron_dr</name>
+            </submesh>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>1.0 1.0 1.0 1.0</ambient>
+          <diffuse>1.0 1.0 1.0 1.0</diffuse>
+        </material>
+      </visual>
+      <!-- Fixed 3-point landing gear (skid legs, no wheels/suspension),
+           reused verbatim from tricopter_ap: two main legs under the
+           fuselage centerline, one tail skid clear of the pusher prop's
+           swept position. -->
+      <visual name="left_main_gear">
+        <pose>0.05 0.15 -0.125 0 0 0</pose>
+        <geometry>
+          <cylinder>
+            <radius>0.008</radius>
+            <length>0.15</length>
+          </cylinder>
+        </geometry>
+        <material>
+          <ambient>0.175 0.175 0.175 1.0</ambient>
+          <diffuse>0.175 0.175 0.175 1.0</diffuse>
+        </material>
+      </visual>
+      <collision name="left_main_gear_collision">
+        <pose>0.05 0.15 -0.125 0 0 0</pose>
+        <geometry>
+          <cylinder>
+            <radius>0.008</radius>
+            <length>0.15</length>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode />
+          </contact>
+          <friction>
+            <ode />
+          </friction>
+        </surface>
+      </collision>
+      <visual name="right_main_gear">
+        <pose>0.05 -0.15 -0.125 0 0 0</pose>
+        <geometry>
+          <cylinder>
+            <radius>0.008</radius>
+            <length>0.15</length>
+          </cylinder>
+        </geometry>
+        <material>
+          <ambient>0.175 0.175 0.175 1.0</ambient>
+          <diffuse>0.175 0.175 0.175 1.0</diffuse>
+        </material>
+      </visual>
+      <collision name="right_main_gear_collision">
+        <pose>0.05 -0.15 -0.125 0 0 0</pose>
+        <geometry>
+          <cylinder>
+            <radius>0.008</radius>
+            <length>0.15</length>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode />
+          </contact>
+          <friction>
+            <ode />
+          </friction>
+        </surface>
+      </collision>
+      <visual name="tail_skid">
+        <pose>-0.30 0 -0.13 0 0 0</pose>
+        <geometry>
+          <cylinder>
+            <radius>0.008</radius>
+            <length>0.15</length>
+          </cylinder>
+        </geometry>
+        <material>
+          <ambient>0.175 0.175 0.175 1.0</ambient>
+          <diffuse>0.175 0.175 0.175 1.0</diffuse>
+        </material>
+      </visual>
+      <collision name="tail_skid_collision">
+        <pose>-0.30 0 -0.13 0 0 0</pose>
+        <geometry>
+          <cylinder>
+            <radius>0.008</radius>
+            <length>0.15</length>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode />
+          </contact>
+          <friction>
+            <ode />
+          </friction>
+        </surface>
+      </collision>
+
+      <gravity>1</gravity>
+      <velocity_decay />
+      <self_collide>0</self_collide>
+
+      <sensor name="imu_sensor" type="imu">
+        <gz_frame_id>base_link</gz_frame_id>
+        <!-- 180deg roll: Gazebo's IMU reports in the SENSOR frame and
+             ArduPilotPlugin doesn't rotate it itself, only pose/velocity
+             go through modelXYZToAirplaneXForwardZDown. Reused from
+             tricopter_ap (same body-frame convention). -->
+        <pose degrees="true">0 0 0 180 0 0</pose>
+        <always_on>1</always_on>
+        <update_rate>250</update_rate>
+        <imu>
+          <angular_velocity>
+            <x><noise type="gaussian"><mean>0</mean><stddev>0.0003394</stddev><dynamic_bias_stddev>3.8785e-05</dynamic_bias_stddev><dynamic_bias_correlation_time>1000</dynamic_bias_correlation_time></noise></x>
+            <y><noise type="gaussian"><mean>0</mean><stddev>0.0003394</stddev><dynamic_bias_stddev>3.8785e-05</dynamic_bias_stddev><dynamic_bias_correlation_time>1000</dynamic_bias_correlation_time></noise></y>
+            <z><noise type="gaussian"><mean>0</mean><stddev>0.0003394</stddev><dynamic_bias_stddev>3.8785e-05</dynamic_bias_stddev><dynamic_bias_correlation_time>1000</dynamic_bias_correlation_time></noise></z>
+          </angular_velocity>
+          <linear_acceleration>
+            <x><noise type="gaussian"><mean>0</mean><stddev>0.004</stddev><dynamic_bias_stddev>0.006</dynamic_bias_stddev><dynamic_bias_correlation_time>300</dynamic_bias_correlation_time></noise></x>
+            <y><noise type="gaussian"><mean>0</mean><stddev>0.004</stddev><dynamic_bias_stddev>0.006</dynamic_bias_stddev><dynamic_bias_correlation_time>300</dynamic_bias_correlation_time></noise></y>
+            <z><noise type="gaussian"><mean>0</mean><stddev>0.004</stddev><dynamic_bias_stddev>0.006</dynamic_bias_stddev><dynamic_bias_correlation_time>300</dynamic_bias_correlation_time></noise></z>
+          </linear_acceleration>
+        </imu>
+      </sensor>
+      <sensor name="air_pressure_sensor" type="air_pressure">
+        <gz_frame_id>base_link</gz_frame_id>
+        <always_on>1</always_on>
+        <update_rate>50</update_rate>
+        <air_pressure>
+          <pressure>
+            <noise type="gaussian"><mean>0</mean><stddev>0.01</stddev></noise>
+          </pressure>
+        </air_pressure>
+      </sensor>
+      <sensor name="magnetometer_sensor" type="magnetometer">
+        <gz_frame_id>base_link</gz_frame_id>
+        <always_on>1</always_on>
+        <update_rate>100</update_rate>
+        <magnetometer>
+          <x><noise type="gaussian"><stddev>0.0001</stddev></noise></x>
+          <y><noise type="gaussian"><stddev>0.0001</stddev></noise></y>
+          <z><noise type="gaussian"><stddev>0.0001</stddev></noise></z>
+        </magnetometer>
+      </sensor>
+      <sensor name="navsat_sensor" type="navsat">
+        <gz_frame_id>base_link</gz_frame_id>
+        <always_on>1</always_on>
+        <update_rate>30</update_rate>
+      </sensor>
+    </link>
+
+    <!-- Elevon anchor links: no <visual> -- their real geometry
+         (eleron_stg/eleron_dr) is baked into base_link's static submesh
+         render above (same established pattern as tricopter_ap). Physics/
+         control is driven by these joints' actual angle, not by any
+         visual deflecting. -->
+    <link name="left_elevon">
+      <inertial>
+        <mass>0.00000001</mass>
+        <inertia>
+          <ixx>0.000001</ixx><ixy>0.0</ixy><ixz>0.0</ixz>
+          <iyy>0.000001</iyy><iyz>0.0</iyz><izz>0.000001</izz>
+        </inertia>
+        <pose>0 0.34 0 0 0 0</pose>
+      </inertial>
+    </link>
+    <link name="right_elevon">
+      <inertial>
+        <mass>0.00000001</mass>
+        <inertia>
+          <ixx>0.000001</ixx><ixy>0.0</ixy><ixz>0.0</ixz>
+          <iyy>0.000001</iyy><iyz>0.0</iyz><izz>0.000001</izz>
+        </inertia>
+        <pose>0 -0.34 0 0 0 0</pose>
+      </inertial>
+    </link>
+    <joint name="left_elevon_joint" type="revolute">
+      <parent>base_link</parent>
+      <child>left_elevon</child>
+      <!-- Hinge line measured off eleron_stg (Hirrus.dae), reused verbatim
+           from tricopter_ap -- see that file's own comment for the
+           derivation (forward edge x=-0.317, midspan y=1.2425, mid
+           z=-0.111). -->
+      <pose>-0.317 1.2425 -0.111 0 0 0</pose>
+      <axis>
+        <xyz>0 1 0</xyz>
+        <limit>
+          <lower>-0.78</lower>
+          <upper>0.78</upper>
+        </limit>
+        <dynamics>
+          <damping>1.000</damping>
+        </dynamics>
+      </axis>
+      <physics>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+        </ode>
+      </physics>
+    </joint>
+    <joint name="right_elevon_joint" type="revolute">
+      <parent>base_link</parent>
+      <child>right_elevon</child>
+      <pose>-0.317 -1.2425 -0.111 0 0 0</pose>
+      <axis>
+        <xyz>0 1 0</xyz>
+        <limit>
+          <lower>-0.78</lower>
+          <upper>0.78</upper>
+        </limit>
+        <dynamics>
+          <damping>1.000</damping>
+        </dynamics>
+      </axis>
+      <physics>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+        </ode>
+      </physics>
+    </joint>
+
+    <!-- Pusher propeller: real "elice" mesh position measured directly off
+         Hirrus.dae (bbox center x=0.4950,y=0.0010,z=-0.0604 before the
+         180deg yaw, i.e. x=-0.495,y=0,z=-0.06 after it) -- a separate,
+         physics-driven link/joint, NOT the static "elice" submesh (that
+         one stays out of base_link's visual list above). <center>true</center>
+         on the submesh reference re-centers its own baked-in vertex
+         coordinates around this link's local origin, so the link's own
+         <pose> alone places it correctly (no double offset). Spins about
+         the model's local X (fore-aft) axis -- the raw mesh's disk already
+         lies in the Y-Z plane at this station. -->
+    <link name="propeller">
+      <pose>-0.495 0 -0.06 0 0 0</pose>
+      <inertial>
+        <pose>0 0 0 0 0 0</pose>
+        <mass>0.005</mass>
+        <inertia>
+          <ixx>9.75e-07</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.000166704</iyy>
+          <iyz>0</iyz>
+          <izz>0.000167604</izz>
+        </inertia>
+      </inertial>
+      <visual name="visual">
+        <pose>0 0 0 0 0 3.14159265</pose>
+        <geometry>
+          <mesh>
+            <uri>model://hirrus/meshes/Hirrus.dae</uri>
+            <submesh>
+              <name>elice</name>
+              <center>true</center>
+            </submesh>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>0.175 0.175 0.175 1.0</ambient>
+          <diffuse>0.175 0.175 0.175 1.0</diffuse>
+        </material>
+      </visual>
+      <gravity>1</gravity>
+      <velocity_decay />
+      <self_collide>0</self_collide>
+    </link>
+    <joint name="propeller_joint" type="revolute">
+      <parent>base_link</parent>
+      <child>propeller</child>
+      <axis>
+        <xyz>1 0 0</xyz>
+        <dynamics>
+          <damping>0.002</damping>
+        </dynamics>
+      </axis>
+    </joint>
+
+    <!-- Wing/elevon LiftDrag panels: same 4-panel washout split (inner
+         fixed / outer elevon per side) and same cp/area geometry as
+         tricopter_ap (measured directly off the Hirrus.dae mesh -- see
+         that file's own comment for the span-band slicing). cla/cda
+         REDERIVED here from Hirrus.avl's own real CL-alpha/drag polar
+         (~/Hirrus/Polara.txt, 17-point trimmed sweep from an actual AVL
+         solve), replacing tricopter_ap's placeholder cla=5.2 (an
+         unconstrained Helmbold-corrected guess) and cda=0.2275 (an
+         unchanged X8 leftover):
+           cla = 2.48 /rad, a0 = -0.0371 rad -- linear least-squares fit of
+           CL vs alpha over the whole 17-point sweep (residual < 0.001).
+           cda = 0.0739 /rad -- least-squares fit of Cd = cda*(alpha-a0),
+           matching gz-sim-lift-drag-system's own linear (not parabolic)
+           drag model; ponytail: that linear-in-alpha model is a poor fit
+           to the real (visibly parabolic, induced-drag-dominated) polar
+           at the sweep's low-alpha end (~30% under at alpha=0) and closer
+           near alpha=8deg -- picked as the best single slope across the
+           full sweep since cruise alpha isn't pinned down yet either.
+           Upgrade path: refit cda over just the actual trimmed-cruise
+           alpha band once one is confirmed by flight-testing this model.
+         a0 keeps tricopter_ap's own per-panel split (-0.052 inner /
+         -0.021 outer, from Hirrus.avl's SECTION incidence table) rather
+         than collapsing to the single whole-aircraft -0.0371: their
+         area-weighted average (-0.040) already lands within 0.15deg of
+         the fitted value, and the split is what gives the outer/elevon
+         panel its self-trimming washout -- collapsing it would remove
+         that.
+         alpha_stall/cla_stall/cda_stall: UNCHANGED placeholders --
+         Polara.txt's sweep only covers alpha<=8.4deg (a normal-cruise
+         trim sweep, not a stall test), so no real stall data exists yet
+         for this airframe. -->
+    <plugin filename="gz-sim-lift-drag-system" name="gz::sim::systems::LiftDrag">
+      <a0>-0.052</a0>
+      <cla>2.48</cla>
+      <cda>0.0739</cda>
+      <cma>0.0</cma>
+      <alpha_stall>0.3391428111</alpha_stall>
+      <cla_stall>-3.85</cla_stall>
+      <cda_stall>-0.9233984055</cda_stall>
+      <cma_stall>0</cma_stall>
+      <cp>-0.029 0.534 -0.09</cp>
+      <area>0.259</area>
+      <air_density>1.2041</air_density>
+      <forward>1 0 0</forward>
+      <upward>0 0 1</upward>
+      <link_name>base_link</link_name>
+      <control_joint_name>left_elevon_joint</control_joint_name>
+      <control_joint_rad_to_cl>-0.26</control_joint_rad_to_cl>
+    </plugin>
+    <plugin filename="gz-sim-lift-drag-system" name="gz::sim::systems::LiftDrag">
+      <a0>-0.021</a0>
+      <cla>2.48</cla>
+      <cda>0.0739</cda>
+      <cma>0.0</cma>
+      <alpha_stall>0.3391428111</alpha_stall>
+      <cla_stall>-3.85</cla_stall>
+      <cda_stall>-0.9233984055</cda_stall>
+      <cma_stall>0</cma_stall>
+      <cp>-0.239 1.207 -0.105</cp>
+      <area>0.159</area>
+      <air_density>1.2041</air_density>
+      <forward>1 0 0</forward>
+      <upward>0 0 1</upward>
+      <link_name>base_link</link_name>
+      <control_joint_name>left_elevon_joint</control_joint_name>
+      <control_joint_rad_to_cl>-0.26</control_joint_rad_to_cl>
+    </plugin>
+    <plugin filename="gz-sim-lift-drag-system" name="gz::sim::systems::LiftDrag">
+      <a0>-0.052</a0>
+      <cla>2.48</cla>
+      <cda>0.0739</cda>
+      <cma>0.0</cma>
+      <alpha_stall>0.3391428111</alpha_stall>
+      <cla_stall>-3.85</cla_stall>
+      <cda_stall>-0.9233984055</cda_stall>
+      <cma_stall>0</cma_stall>
+      <cp>-0.029 -0.534 -0.09</cp>
+      <area>0.259</area>
+      <air_density>1.2041</air_density>
+      <forward>1 0 0</forward>
+      <upward>0 0 1</upward>
+      <link_name>base_link</link_name>
+      <control_joint_name>right_elevon_joint</control_joint_name>
+      <control_joint_rad_to_cl>-0.26</control_joint_rad_to_cl>
+    </plugin>
+    <plugin filename="gz-sim-lift-drag-system" name="gz::sim::systems::LiftDrag">
+      <a0>-0.021</a0>
+      <cla>2.48</cla>
+      <cda>0.0739</cda>
+      <cma>0.0</cma>
+      <alpha_stall>0.3391428111</alpha_stall>
+      <cla_stall>-3.85</cla_stall>
+      <cda_stall>-0.9233984055</cda_stall>
+      <cma_stall>0</cma_stall>
+      <cp>-0.239 -1.207 -0.105</cp>
+      <area>0.159</area>
+      <air_density>1.2041</air_density>
+      <forward>1 0 0</forward>
+      <upward>0 0 1</upward>
+      <link_name>base_link</link_name>
+      <control_joint_name>right_elevon_joint</control_joint_name>
+      <control_joint_rad_to_cl>-0.26</control_joint_rad_to_cl>
+    </plugin>
+    <!-- Wingtip winglets -- passive, fixed (no control_joint_name), reused
+         verbatim from tricopter_ap: no dedicated small-fin airfoil data
+         for Hirrus either, same reasoned stand-in. -->
+    <plugin filename="gz-sim-lift-drag-system" name="gz::sim::systems::LiftDrag">
+      <a0>0.0</a0>
+      <cla>4.752798721</cla>
+      <cda>0.6417112299</cda>
+      <cma>0.0</cma>
+      <alpha_stall>0.3391428111</alpha_stall>
+      <cla_stall>-3.85</cla_stall>
+      <cda_stall>-0.9233984055</cda_stall>
+      <cma_stall>0</cma_stall>
+      <cp>-0.30 1.56 -0.03</cp>
+      <area>0.025</area>
+      <air_density>1.2041</air_density>
+      <forward>1 0 0</forward>
+      <upward>0 1 0</upward>
+      <link_name>base_link</link_name>
+    </plugin>
+    <plugin filename="gz-sim-lift-drag-system" name="gz::sim::systems::LiftDrag">
+      <a0>0.0</a0>
+      <cla>4.752798721</cla>
+      <cda>0.6417112299</cda>
+      <cma>0.0</cma>
+      <alpha_stall>0.3391428111</alpha_stall>
+      <cla_stall>-3.85</cla_stall>
+      <cda_stall>-0.9233984055</cda_stall>
+      <cma_stall>0</cma_stall>
+      <cp>-0.30 -1.56 -0.03</cp>
+      <area>0.025</area>
+      <air_density>1.2041</air_density>
+      <forward>1 0 0</forward>
+      <upward>0 1 0</upward>
+      <link_name>base_link</link_name>
+    </plugin>
+
+    <!-- Propeller thrust rig: ArduPilotPlugin's VELOCITY control only
+         spins propeller_joint (zero lift on its own); these two LiftDrag
+         blocks at opposite cp (so off-axis moments cancel) convert that
+         spin into forward thrust. Coefficients reused verbatim from
+         tricopter_ap's own rotor thrust rigs (already sized for a
+         same-order-of-magnitude prop on this airframe); cp/forward/upward
+         permuted for this prop's spin axis (X here vs Z there). -->
+    <plugin filename="gz-sim-lift-drag-system" name="gz::sim::systems::LiftDrag">
+      <a0>0.3</a0>
+      <alpha_stall>1.4</alpha_stall>
+      <cla>4.2500</cla>
+      <cda>0.10</cda>
+      <cma>0.0</cma>
+      <cla_stall>-0.025</cla_stall>
+      <cda_stall>0.0</cda_stall>
+      <cma_stall>0.0</cma_stall>
+      <area>0.004</area>
+      <air_density>1.2041</air_density>
+      <cp>0 0.0724 0</cp>
+      <forward>0 0 1</forward>
+      <upward>1 0 0</upward>
+      <link_name>propeller</link_name>
+    </plugin>
+    <plugin filename="gz-sim-lift-drag-system" name="gz::sim::systems::LiftDrag">
+      <a0>0.3</a0>
+      <alpha_stall>1.4</alpha_stall>
+      <cla>4.2500</cla>
+      <cda>0.10</cda>
+      <cma>0.0</cma>
+      <cla_stall>-0.025</cla_stall>
+      <cda_stall>0.0</cda_stall>
+      <cma_stall>0.0</cma_stall>
+      <area>0.004</area>
+      <air_density>1.2041</air_density>
+      <cp>0 -0.0724 0</cp>
+      <forward>0 0 -1</forward>
+      <upward>1 0 0</upward>
+      <link_name>propeller</link_name>
+    </plugin>
+
+    <!-- Required for the elevon servos to work at all: ArduPilotPlugin's
+         POSITION+useForce=1 path reads the joint's JointPosition
+         component but never creates one itself. propeller_joint doesn't
+         need this -- its VELOCITY control reads JointVelocity, already
+         populated by physics. -->
+    <plugin filename="gz-sim-joint-state-publisher-system" name="gz::sim::systems::JointStatePublisher">
+      <joint_name>left_elevon_joint</joint_name>
+      <joint_name>right_elevon_joint</joint_name>
+    </plugin>
+
+    <plugin name="ArduPilotPlugin" filename="ArduPilotPlugin">
+      <fdm_addr>127.0.0.1</fdm_addr>
+      <fdm_port_in>9002</fdm_port_in>
+      <connectionTimeoutMaxCount>5</connectionTimeoutMaxCount>
+      <lock_step>1</lock_step>
+
+      <!-- Same body-frame convention as tricopter_ap (identical mesh
+           mounting, 180deg yaw). -->
+      <gazeboXYZToNED degrees="true">0 0 0 180 0 90</gazeboXYZToNED>
+      <modelXYZToAirplaneXForwardZDown degrees="true">0 0 0 180 0 0</modelXYZToAirplaneXForwardZDown>
+
+      <imuName>base_link::imu_sensor</imuName>
+
+      <!-- SERVO1/2 (channels 0/1): elevons, POSITION+useForce, gains
+           reused verbatim from tricopter_ap (already tuned there for
+           this exact elevon geometry/mass class). multiplier=1.56 maps
+           incoming [0,1] normalized PWM (offset=-0.5 -> [-0.5,0.5]) onto
+           the +-0.78 rad joint limit. -->
+      <control channel="0">
+        <jointName>left_elevon_joint</jointName>
+        <useForce>1</useForce>
+        <multiplier>1.56</multiplier>
+        <offset>-0.5</offset>
+        <servo_min>1000</servo_min>
+        <servo_max>2000</servo_max>
+        <type>POSITION</type>
+        <p_gain>100.0</p_gain>
+        <i_gain>20</i_gain>
+        <d_gain>1.0</d_gain>
+        <i_max>5</i_max>
+        <i_min>-5</i_min>
+        <cmd_max>25.0</cmd_max>
+        <cmd_min>-25.0</cmd_min>
+      </control>
+      <control channel="1">
+        <jointName>right_elevon_joint</jointName>
+        <useForce>1</useForce>
+        <multiplier>1.56</multiplier>
+        <offset>-0.5</offset>
+        <servo_min>1000</servo_min>
+        <servo_max>2000</servo_max>
+        <type>POSITION</type>
+        <p_gain>100.0</p_gain>
+        <i_gain>20</i_gain>
+        <d_gain>1.0</d_gain>
+        <i_max>5</i_max>
+        <i_min>-5</i_min>
+        <cmd_max>25.0</cmd_max>
+        <cmd_min>-25.0</cmd_min>
+      </control>
+      <!-- SERVO3 (channel 2): throttle, VELOCITY on propeller_joint, gains
+           reused verbatim from tricopter_ap's own rotor control blocks
+           (first-pass -- this airframe's real single-pusher cruise thrust
+           need hasn't been tuned against these, unlike the elevon gains
+           above which were live-tested on this exact geometry already). -->
+      <control channel="2">
+        <jointName>propeller_joint</jointName>
+        <useForce>1</useForce>
+        <multiplier>1800</multiplier>
+        <offset>0</offset>
+        <servo_min>1000</servo_min>
+        <servo_max>2000</servo_max>
+        <type>VELOCITY</type>
+        <p_gain>0.20</p_gain>
+        <i_gain>0</i_gain>
+        <d_gain>0</d_gain>
+        <i_max>0</i_max>
+        <i_min>0</i_min>
+        <cmd_max>8.0</cmd_max>
+        <cmd_min>-8.0</cmd_min>
+        <rotorVelocitySlowdownSim>1</rotorVelocitySlowdownSim>
+      </control>
+    </plugin>
+  </model>
+</sdf>

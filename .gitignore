@@ -1,0 +1,9 @@
+# web_viewer/assets/runway is a symlink to the runway model in the
+# separate ardupilot_gazebo checkout ($HOME/ardupilot_gazebo/models/runway,
+# per this project's own README prerequisites) -- machine-specific, can't
+# be committed portably. Recreate it after cloning:
+#   ln -s $HOME/ardupilot_gazebo/models/runway web_viewer/assets/runway
+/web_viewer/assets/runway
+
+__pycache__/
+*.pyc
