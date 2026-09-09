@@ -163,100 +163,10 @@
           <diffuse>1.0 1.0 1.0 1.0</diffuse>
         </material>
       </visual>
-      <!-- Fixed 3-point landing gear (skid legs, no wheels/suspension),
-           reused verbatim from tricopter_ap: two main legs under the
-           fuselage centerline, one tail skid clear of the pusher prop's
-           swept position. -->
-      <visual name="left_main_gear">
-        <pose>0.05 0.15 -0.125 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <radius>0.008</radius>
-            <length>0.15</length>
-          </cylinder>
-        </geometry>
-        <material>
-          <ambient>0.175 0.175 0.175 1.0</ambient>
-          <diffuse>0.175 0.175 0.175 1.0</diffuse>
-        </material>
-      </visual>
-      <collision name="left_main_gear_collision">
-        <pose>0.05 0.15 -0.125 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <radius>0.008</radius>
-            <length>0.15</length>
-          </cylinder>
-        </geometry>
-        <surface>
-          <contact>
-            <ode />
-          </contact>
-          <friction>
-            <ode />
-          </friction>
-        </surface>
-      </collision>
-      <visual name="right_main_gear">
-        <pose>0.05 -0.15 -0.125 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <radius>0.008</radius>
-            <length>0.15</length>
-          </cylinder>
-        </geometry>
-        <material>
-          <ambient>0.175 0.175 0.175 1.0</ambient>
-          <diffuse>0.175 0.175 0.175 1.0</diffuse>
-        </material>
-      </visual>
-      <collision name="right_main_gear_collision">
-        <pose>0.05 -0.15 -0.125 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <radius>0.008</radius>
-            <length>0.15</length>
-          </cylinder>
-        </geometry>
-        <surface>
-          <contact>
-            <ode />
-          </contact>
-          <friction>
-            <ode />
-          </friction>
-        </surface>
-      </collision>
-      <visual name="tail_skid">
-        <pose>-0.30 0 -0.13 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <radius>0.008</radius>
-            <length>0.15</length>
-          </cylinder>
-        </geometry>
-        <material>
-          <ambient>0.175 0.175 0.175 1.0</ambient>
-          <diffuse>0.175 0.175 0.175 1.0</diffuse>
-        </material>
-      </visual>
-      <collision name="tail_skid_collision">
-        <pose>-0.30 0 -0.13 0 0 0</pose>
-        <geometry>
-          <cylinder>
-            <radius>0.008</radius>
-            <length>0.15</length>
-          </cylinder>
-        </geometry>
-        <surface>
-          <contact>
-            <ode />
-          </contact>
-          <friction>
-            <ode />
-          </friction>
-        </surface>
-      </collision>
+      <!-- No landing gear: catapult-launched, belly-landing airframe (see
+           the ApplyLinkWrench catapult plugin below). base_link_collision
+           above (the fuselage silhouette box) still gives it something to
+           slide/rest on for a belly landing. -->
 
       <gravity>1</gravity>
       <velocity_decay />
@@ -624,6 +534,29 @@
       <joint_name>left_elevon_joint</joint_name>
       <joint_name>right_elevon_joint</joint_name>
     </plugin>
+
+    <!-- Catapult launch: no landing gear means no rolling takeoff, so
+         base_link needs an external push to get above stall speed. First
+         approach here was a <persistent> wrench auto-cleared by a
+         wall-clock timer in run_sitl.sh -- dropped because gz sim's
+         <lock_step> freezes sim time until ArduPilot actually connects
+         (a separate terminal, unpredictable delay), so a wall-clock timer
+         races the sim clock and can clear the force before physics ever
+         ticks.
+
+         Fired manually instead, as a single ONE-STEP instantaneous
+         wrench (see README.md's "Launch" section for the exact command)
+         sized to deliver the whole launch delta-v in that one physics
+         step: impulse = mass * target_v = 6.5kg * 20 m/s = 130 kg.m/s;
+         force for a single <max_step_size>0.001s step = impulse/dt =
+         130000 N. 20 m/s target is a generous margin above any plausible
+         stall speed for this wing (no measured stall speed for Hirrus --
+         see model.config's own aero-data comments); AIRSPEED_MIN=11 m/s
+         was the figure used for this airframe's tricopter VTOL variant.
+         No persistent state, no clear, no timing to get right -- the
+         pilot fires it when actually ready (armed, FBWA/MANUAL,
+         throttle up), same as a real catapult operator, not a clock. -->
+    <plugin filename="gz-sim-apply-link-wrench-system" name="gz::sim::systems::ApplyLinkWrench"></plugin>
 
     <plugin name="ArduPilotPlugin" filename="ArduPilotPlugin">
       <fdm_addr>127.0.0.1</fdm_addr>

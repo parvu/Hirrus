@@ -7,3 +7,12 @@
 
 __pycache__/
 *.pyc
+
+# ArduPilot SITL working-directory scratch state, created wherever
+# arduplane happens to be run from.
+eeprom.bin
+mav.tlog
+mav.tlog.raw
+mav.parm
+logs/
+terrain/

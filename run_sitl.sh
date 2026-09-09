@@ -1,7 +1,7 @@
 #!/bin/bash
-# Launch gz-sim for the Hirrus flying wing. Run ArduPilot SITL in a second
-# terminal (printed below) -- same 2-terminal workflow as ardupilot_gazebo's
-# own Zephyr example (see ~/ardupilot_gazebo/README.md).
+# Launch gz-sim (headless) for the Hirrus flying wing over the
+# Domnesti-Slanic-5 terrain. Full launch sequence (SITL, browser viewer)
+# is in README.md -- this script only does the gz sim half.
 set -euo pipefail
 
 HIRRUS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -31,25 +31,14 @@ fi
 export GZ_SIM_SYSTEM_PLUGIN_PATH="$HOME/ardupilot_gazebo/build:${GZ_SIM_SYSTEM_PLUGIN_PATH:-}"
 export GZ_SIM_RESOURCE_PATH="$HIRRUS_DIR/models:$HIRRUS_DIR/worlds:$HOME/ardupilot_gazebo/models:$HOME/ardupilot_gazebo/worlds:${GZ_SIM_RESOURCE_PATH:-}"
 
-echo "In another terminal, run:"
-echo "  sim_vehicle.py -v ArduPlane --model JSON --add-param-file=$HIRRUS_DIR/hirrus.parm --map --console"
-echo
-# `gz launch` isn't a registered subcommand on this system's (ROS-vendored)
-# `gz` CLI -- `gz --commands` lists no "launch" at all, even with
-# gz-launch7-cli installed. The actual binary (same one AeroCanyon_Guard's
-# own README calls directly, same reason) still works fine called directly,
-# positionally (no -f -- that flag doesn't exist on this binary, confirmed
-# via its own --help).
-GZ_LAUNCH_BIN=$(echo /usr/lib/*/gz/launch*/gz-launch 2>/dev/null | awk '{print $1}')
-
-echo "For the browser view + manual control (optional, 2 more terminals -- each"
-echo "needs 'gz' on PATH too, e.g. 'source /opt/ros/jazzy/setup.bash' first):"
-echo "  cd $HIRRUS_DIR/web_viewer && ${GZ_LAUNCH_BIN:-gz-launch} websocket.gzlaunch"
-echo "  cd $HIRRUS_DIR/web_viewer && python3 control_server.py 8080"
-echo "  then open http://localhost:8080"
-echo
-
 # -s: server-only, no native GUI window. That GUI needs a working X/Wayland
 # display (WSL's is often absent or flaky) and isn't needed here anyway --
 # the browser viewer (web_viewer/) is the intended way to see the sim.
-exec gz sim -s -r -v4 hirrus_runway.sdf
+#
+# Domnesti-Slanic-5.world lives one level under worlds/ (its own directory,
+# alongside its own mesh/ folder that its relative mesh URIs resolve
+# against) -- passed as a full path rather than relying on
+# GZ_SIM_RESOURCE_PATH to find it, since that only lists worlds/ itself.
+WORLD_FILE="$HIRRUS_DIR/worlds/Domnesti-Slanic-5/Domnesti-Slanic-5.world"
+
+exec gz sim -s -r -v4 "$WORLD_FILE"
