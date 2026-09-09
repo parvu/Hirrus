@@ -109,7 +109,7 @@
           <mesh>
             <uri>model://hirrus/meshes/Hirrus.dae</uri>
             <submesh>
-              <name>aripa_stg</name>
+              <name>aripa stg</name>
             </submesh>
           </mesh>
         </geometry>
@@ -124,7 +124,7 @@
           <mesh>
             <uri>model://hirrus/meshes/Hirrus.dae</uri>
             <submesh>
-              <name>aripa_dr</name>
+              <name>aripa dr</name>
             </submesh>
           </mesh>
         </geometry>
@@ -139,7 +139,7 @@
           <mesh>
             <uri>model://hirrus/meshes/Hirrus.dae</uri>
             <submesh>
-              <name>eleron_stg</name>
+              <name>eleron stg</name>
             </submesh>
           </mesh>
         </geometry>
@@ -154,7 +154,7 @@
           <mesh>
             <uri>model://hirrus/meshes/Hirrus.dae</uri>
             <submesh>
-              <name>eleron_dr</name>
+              <name>eleron dr</name>
             </submesh>
           </mesh>
         </geometry>
