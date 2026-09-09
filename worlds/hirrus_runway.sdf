@@ -56,12 +56,31 @@
       <pose degrees="true">-29 545 0 0 0 363</pose>
     </include>
 
-    <!-- Hirrus starts on the runway, flat (not vertical like Zephyr's
-         tail-sitter takeoff) -- it has tricycle-style skid gear, not a
-         delta-wing tailsitter stance. -->
+    <!-- Launch ramp on the runway surface (world Z=0): zero friction so
+         the catapult's one-shot forward impulse (model.sdf's own
+         ApplyLinkWrench comment) isn't fighting the runway plane's own
+         default ODE friction -- there's no landing gear, the plane's
+         belly slides directly on whatever it's resting on. See
+         models/launch_ramp's own comment. -->
+    <include>
+      <uri>model://launch_ramp</uri>
+      <pose degrees="true">0 0 0 0 0 0</pose>
+    </include>
+
+    <!-- Hirrus, resting on the ramp above, flat (not vertical like
+         Zephyr's tail-sitter takeoff). Z=0.83: ramp top (2m thick --
+         see launch_ramp/model.sdf's own comment for why, not the more
+         obvious-looking 0.3m -- centered at 0 -> top at 1.0) plus
+         base_link_collision's own bottom offset (-0.196 from an include
+         pose of 0, see Domnesti-Slanic-5.world's matching spawn-pose
+         comment for the full arithmetic) plus a 3cm clearance, same
+         derivation as there just with this world's ramp centered at
+         Z=0 instead of 15 (so ~1m of the ramp's own 2m thickness sits
+         below the runway plane -- harmless, nothing renders/collides
+         from below it anyway). -->
     <include>
       <uri>model://hirrus</uri>
-      <pose degrees="true">0 0 0 0 0 0</pose>
+      <pose degrees="true">0 0 0.83 0 0 0</pose>
     </include>
   </world>
 </sdf>

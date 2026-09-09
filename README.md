@@ -97,6 +97,11 @@ need a second, independent connection.
   cruise trim), so `model.sdf`'s stall-region `LiftDrag` coefficients
   (`alpha_stall`, `cla_stall`, `cda_stall`) are still placeholders carried
   over from the tricopter VTOL variant, not measured for this airframe.
-- `Domnesti-Slanic-5.world`'s hirrus spawn height (z=100) is a safe-margin
-  guess against the terrain's global elevation range, not a measured
-  ground height at that exact spawn point.
+- Both worlds spawn hirrus on `models/launch_ramp`, a static, zero-friction
+  platform, rather than directly on the terrain/runway -- avoids depending
+  on the heightmap's exact elevation at the spawn XY (not readable off its
+  SDF) and, on the terrain world specifically, a real Bullet-collision-
+  detector bug where hirrus's own very thin `base_link_collision` box fell
+  straight through anything thinner than ~2m (see `launch_ramp/model.sdf`'s
+  own comment for the isolated repro). Confirmed live, settles stable on
+  both worlds.
