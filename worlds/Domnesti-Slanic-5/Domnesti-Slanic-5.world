@@ -395,39 +395,23 @@
 
         </model>
 
-        <!-- Launch ramp: a known, flat, zero-friction surface at the
-             tile's own launch-point origin (0,0) -- see
-             models/launch_ramp's own comment for why (spawning directly
-             on this heightmap's own collision risked landing inside it;
-             its exact elevation at any given XY isn't readable off this
-             SDF, only bounded roughly to [-23,-1] in this world's local
-             frame by the heightmap's collision <pose> z=-12.0 and 21.4m
-             total relief). Elevated well clear of that whole range so it
-             floats above the terrain rather than intersecting it. -->
-        <include>
-            <uri>model://launch_ramp</uri>
-            <pose degrees="true">0 0 15 0 0 0</pose>
-        </include>
-
-        <!-- Hirrus, resting on the ramp above. Z=16.4: a generous 0.5m
-             margin above the ramp top (16.0) against the fuselage MESH's
-             own lowest point (measured off Hirrus.dae: local z min
-             -0.1341, +0.246 from this model's own top-level pose lift =
-             0.1119 absolute-to-model-origin) -- earlier versions of this
-             comment computed a tighter clearance against first the
-             invisible collision silhouette (Z=15.83, which buried most of
-             the actual visible mesh inside the 2m-thick ramp -- a real
-             contributor to "hirrus is just a grey box", though NOT the
-             only one: model.sdf's <submesh><name> tags were also wrong at
-             the time, see that file's own history) and then a tight 5cm
-             margin against the mesh itself (Z=15.94), but live settling
-             behavior didn't match either arithmetic's own predictions
-             closely enough to trust a tight margin -- this trades a
-             visible ~0.4m drop-and-settle for robustness against whatever
-             that discrepancy actually was. -->
+        <!-- Hirrus, spawned at the tile's own launch-point origin (0,0),
+             the same reference the buildings model's own pose comment
+             above is measured against. Z=100 is a first-pass safe-height
+             guess, not a measured ground elevation at that XY -- the
+             heightmap's collision <pose> z=-12.0 combined with its 21.4m
+             total relief only bounds ground level roughly to [-23,-1] in
+             this world's local frame, not a precise value. Not yet
+             verified live (needs the mesh/ data this world references,
+             confirmed present but not flown against). Belly-lands now
+             (no landing gear, see model.sdf's own comment) -- catapult
+             launch (same file) fires 2s after gz sim starts regardless of
+             where that leaves it relative to the ground; be in FBWA/
+             MANUAL with throttle up before starting gz sim, and adjust Z
+             here if it turns out to spawn inside/far above the terrain. -->
         <include>
             <uri>model://hirrus</uri>
-            <pose degrees="true">0 0 16.4 0 0 0</pose>
+            <pose degrees="true">0 0 100 0 0 0</pose>
         </include>
 
     </world>

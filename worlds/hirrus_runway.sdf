@@ -56,32 +56,12 @@
       <pose degrees="true">-29 545 0 0 0 363</pose>
     </include>
 
-    <!-- Launch ramp on the runway surface (world Z=0): zero friction so
-         the catapult's one-shot forward impulse (model.sdf's own
-         ApplyLinkWrench comment) isn't fighting the runway plane's own
-         default ODE friction -- there's no landing gear, the plane's
-         belly slides directly on whatever it's resting on. See
-         models/launch_ramp's own comment. -->
-    <include>
-      <uri>model://launch_ramp</uri>
-      <pose degrees="true">0 0 0 0 0 0</pose>
-    </include>
-
-    <!-- Hirrus, resting on the ramp above, flat (not vertical like
-         Zephyr's tail-sitter takeoff). Z=1.4: a generous 0.5m margin
-         above the ramp top (1.0) against the fuselage MESH's own lowest
-         point (measured off Hirrus.dae: local z min -0.1341, +0.246 from
-         this model's own top-level pose lift = 0.1119 absolute-to-
-         model-origin) -- not the tighter, precisely-computed clearance a
-         couple of prior versions of this comment used (0.83 against the
-         invisible collision box only, then 0.94 against the mesh with a
-         tight 5cm margin): live settling behavior didn't match that
-         arithmetic's own predictions closely enough to trust a tight
-         margin, so this trades a visible ~0.4m drop-and-settle for
-         robustness against whatever that discrepancy actually was. -->
+    <!-- Hirrus starts on the runway, flat (not vertical like Zephyr's
+         tail-sitter takeoff) -- it has tricycle-style skid gear, not a
+         delta-wing tailsitter stance. -->
     <include>
       <uri>model://hirrus</uri>
-      <pose degrees="true">0 0 1.4 0 0 0</pose>
+      <pose degrees="true">0 0 0 0 0 0</pose>
     </include>
   </world>
 </sdf>

@@ -81,81 +81,44 @@
           </friction>
         </surface>
       </collision>
-      <!-- 5 per-part submesh visuals (fuselage, both wing panels, both
-           elevons), same 180deg-yaw mounting as tricopter_ap (that flip
-           both points the mesh's own nose at +X and lands aripa_dr/
-           aripa_stg on -Y/+Y matching this model's convention). "elice"
-           (the mesh's own fixed prop) deliberately excluded here -- it's
-           rendered instead on the separate, physics-driven "propeller"
-           link below. -->
-      <visual name="base_link_visual_fuselage">
+      <!-- Whole-file visual (fuselage+wings+elevons all in one), NOT 5
+           per-part <submesh> visuals as this used to be. gz-sim's own
+           submesh extraction (Mesh/AssimpLoader, whatever <submesh><name>
+           matches against) is broken for this file's wing/elevon
+           geometry specifically -- confirmed three separate ways live via
+           real screenshots (--headless-rendering + the /gui/screenshot
+           service, see git history for the images): the node name
+           ("aripa_stg"), the raw COLLADA name="..." attribute ("aripa
+           stg"), and the geometry id-with-suffix ("aripa_stg-mesh") all
+           left the wings/elevons invisible -- only fuselaj and elice ever
+           rendered. Same bug reproduced independently in
+           AeroCanyon_Guard's own tricopter_ap model (identical submesh
+           setup, same mesh file) -- pre-existing in that project too, not
+           something introduced here. Loading the whole file with NO
+           <submesh> filter at all rendered the complete aircraft
+           correctly (full fuselage + both swept wings + winglets) --
+           proof the mesh DATA itself is fine and the fault is
+           specifically in gz's submesh-name-matching/extraction path.
+
+           Tradeoff accepted, not solved: the file also contains "elice"
+           (a static, non-spinning duplicate of the real pusher prop),
+           which this whole-file visual now includes too, underneath the
+           separate physics-driven "propeller" link below (that link
+           keeps its own working elice-only submesh reference -- single-
+           part submesh extraction DOES work, it's specifically the
+           multi-part case failing here) -- cosmetic double-prop overlap,
+           same tradeoff tricopter_ap's own comment (removed by this
+           point) originally worked around by excluding elice via
+           per-part submeshes, which is exactly the mechanism that's
+           broken. Upgrade path: get the wing/elevon submeshes extracting
+           correctly (file a gz-sim issue with this repro) and go back to
+           per-part visuals, excluding elice again. Same 180deg-yaw
+           mounting as before (points the mesh's own nose at +X). -->
+      <visual name="base_link_visual">
         <pose>0 0 0 0 0 3.14159265</pose>
         <geometry>
           <mesh>
             <uri>model://hirrus/meshes/Hirrus.dae</uri>
-            <submesh>
-              <name>fuselaj</name>
-            </submesh>
-          </mesh>
-        </geometry>
-        <material>
-          <ambient>1.0 1.0 1.0 1.0</ambient>
-          <diffuse>1.0 1.0 1.0 1.0</diffuse>
-        </material>
-      </visual>
-      <visual name="base_link_visual_wing_left">
-        <pose>0 0 0 0 0 3.14159265</pose>
-        <geometry>
-          <mesh>
-            <uri>model://hirrus/meshes/Hirrus.dae</uri>
-            <submesh>
-              <name>aripa_stg</name>
-            </submesh>
-          </mesh>
-        </geometry>
-        <material>
-          <ambient>1.0 1.0 1.0 1.0</ambient>
-          <diffuse>1.0 1.0 1.0 1.0</diffuse>
-        </material>
-      </visual>
-      <visual name="base_link_visual_wing_right">
-        <pose>0 0 0 0 0 3.14159265</pose>
-        <geometry>
-          <mesh>
-            <uri>model://hirrus/meshes/Hirrus.dae</uri>
-            <submesh>
-              <name>aripa_dr</name>
-            </submesh>
-          </mesh>
-        </geometry>
-        <material>
-          <ambient>1.0 1.0 1.0 1.0</ambient>
-          <diffuse>1.0 1.0 1.0 1.0</diffuse>
-        </material>
-      </visual>
-      <visual name="base_link_visual_elevon_left">
-        <pose>0 0 0 0 0 3.14159265</pose>
-        <geometry>
-          <mesh>
-            <uri>model://hirrus/meshes/Hirrus.dae</uri>
-            <submesh>
-              <name>eleron_stg</name>
-            </submesh>
-          </mesh>
-        </geometry>
-        <material>
-          <ambient>1.0 1.0 1.0 1.0</ambient>
-          <diffuse>1.0 1.0 1.0 1.0</diffuse>
-        </material>
-      </visual>
-      <visual name="base_link_visual_elevon_right">
-        <pose>0 0 0 0 0 3.14159265</pose>
-        <geometry>
-          <mesh>
-            <uri>model://hirrus/meshes/Hirrus.dae</uri>
-            <submesh>
-              <name>eleron_dr</name>
-            </submesh>
           </mesh>
         </geometry>
         <material>

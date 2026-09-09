@@ -97,11 +97,21 @@ need a second, independent connection.
   cruise trim), so `model.sdf`'s stall-region `LiftDrag` coefficients
   (`alpha_stall`, `cla_stall`, `cda_stall`) are still placeholders carried
   over from the tricopter VTOL variant, not measured for this airframe.
-- Both worlds spawn hirrus on `models/launch_ramp`, a static, zero-friction
-  platform, rather than directly on the terrain/runway -- avoids depending
-  on the heightmap's exact elevation at the spawn XY (not readable off its
-  SDF) and, on the terrain world specifically, a real Bullet-collision-
-  detector bug where hirrus's own very thin `base_link_collision` box fell
-  straight through anything thinner than ~2m (see `launch_ramp/model.sdf`'s
-  own comment for the isolated repro). Confirmed live, settles stable on
-  both worlds.
+- Both worlds spawn hirrus directly on the terrain/runway again (a
+  `models/launch_ramp` platform was tried and reverted -- caused more
+  problems than it solved: an oversized grey box, half-sunk into the
+  runway plane, floating disconnected from the terrain). This brings back
+  the original problem it was meant to fix: `Domnesti-Slanic-5.world`'s
+  heightmap collision at the spawn XY isn't readable off its SDF, so a
+  fixed spawn Z (currently 100) can still land the plane inside the
+  terrain rather than on it -- not yet re-solved.
+- Confirmed live (real screenshots via `--headless-rendering` + the
+  `/gui/screenshot` service) that only the fuselage renders on the real
+  `hirrus` model -- both wing panels and both elevons are invisible, a
+  gz-sim submesh-extraction bug reproduced independently in
+  AeroCanyon_Guard's own `tricopter_ap` model (same mesh file, same
+  bug, pre-existing there too). A whole-mesh-file visual (no
+  `<submesh>` filter) renders correctly in isolation; wiring that into
+  `model.sdf` is in progress, not yet confirmed on the real model with
+  its full sensor/collision setup, where the same swap did not visibly
+  fix it in the last live test.
