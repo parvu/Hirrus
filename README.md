@@ -1,9 +1,11 @@
 # Hirrus
 
 Gazebo/ArduPilot SITL for the Hirrus flying wing: a fixed-wing (pusher prop
-+ 2 elevons, no landing gear) `gz-sim` model built from `data/Hirrus.avl`
-and `data/Hirrus.dae`, flying over the Domnesti-Slanic-5 terrain tile, plus
-a browser-based viewer with manual controls (no ROS2/MAVROS dependency).
++ 2 elevons + tricycle landing gear) `gz-sim` model built from
+`data/Hirrus.avl` and `data/Hirrus.dae`, flying from `worlds/hirrus_runway.sdf`
+(a flat runway world -- the active dev target; `worlds/Domnesti-Slanic-5`
+is a real-terrain alternative, see its own Known gaps note below), plus a
+browser-based viewer with manual controls (no ROS2/MAVROS dependency).
 
 ## Prerequisites
 
@@ -31,11 +33,10 @@ independently.
 
 ```bash
 # Terminal 2: ArduPilot SITL. sim_vehicle.py isn't on PATH by default --
-# it lives inside the ardupilot checkout. --custom-location matches this
-# terrain's own <spherical_coordinates> in
-# worlds/Domnesti-Slanic-5/Domnesti-Slanic-5.world (lat,lon,alt,heading);
-# leaving it out would default to CMAC, on the other side of the planet
-# from where the terrain actually is.
+# it lives inside the ardupilot checkout. --custom-location matches
+# worlds/hirrus_runway.sdf's own <spherical_coordinates> (lat,lon,alt,
+# heading); leaving it out would default to CMAC, on the other side of
+# the planet from where the runway actually is.
 $HOME/ardupilot/Tools/autotest/sim_vehicle.py -v ArduPlane --model JSON \
   --add-param-file=$HOME/Hirrus/hirrus.parm \
   --custom-location=44.39361401276187,25.941499548422655,85.2,0 \
@@ -60,25 +61,18 @@ cd $HOME/Hirrus/web_viewer
 python3 control_server.py 8080
 ```
 
-Open `http://localhost:8080`. Arm, switch to `FBWA`, throttle up, then
-launch (see below) -- the on-screen sticks are Mode 2 (left: yaw + climb,
-right: roll + pitch).
+Open `http://localhost:8080`. Arm, switch to `FBWA`, throttle up, and it
+rolls down the runway on its own tricycle gear -- the on-screen sticks are
+Mode 2 (left: yaw + climb, right: roll + pitch).
 
-## Launch (catapult)
-
-No landing gear -- the model needs a push above stall speed to get
-airborne (see `models/hirrus/model.sdf`'s own "Catapult launch" comment
-for why this is a single manually-fired impulse rather than an automatic
-timer). Once armed, in FBWA or MANUAL, throttle up, then fire it:
-
-```bash
-gz topic -t /world/Domnesti-Slanic-5/wrench -m gz.msgs.EntityWrench \
-  -p 'entity: {name: "hirrus::base_link", type: LINK}, wrench: {force: {x: 130000, y: 0, z: 0}}'
-```
-
-That's a single one-physics-step (1ms) impulse sized for a ~20 m/s launch
-speed (`force = mass * target_v / dt`) -- safe to re-run if the first
-attempt didn't take.
+No catapult/launch-impulse mechanism anymore, on purpose: it caused
+tumbling and an uncommanded-thrust risk (see git history on
+`models/launch_ramp` and `model.sdf`'s own gear comment) and real landing
+gear makes it unnecessary -- takeoff is just commanded throttle now, same
+as flying any other wheeled ArduPlane frame. There's also no
+auto-throttle-on-launch-detection in `hirrus.parm` (removed
+`TKOFF_THR_MINACC` and friends) -- throttle only ever comes from an
+explicit stick/RC command.
 
 ## Mission Planner / a second GCS
 
@@ -91,27 +85,20 @@ need a second, independent connection.
 
 ## Known gaps
 
-- Catapult launch speed/force (20 m/s target) is a reasoned estimate, not
-  a measured stall speed for this airframe -- see `model.sdf`'s comment.
-- `data/Polara.txt`'s own AVL sweep only covers alpha<=8.4deg (normal
-  cruise trim), so `model.sdf`'s stall-region `LiftDrag` coefficients
-  (`alpha_stall`, `cla_stall`, `cda_stall`) are still placeholders carried
-  over from the tricopter VTOL variant, not measured for this airframe.
-- Both worlds spawn hirrus directly on the terrain/runway again (a
-  `models/launch_ramp` platform was tried and reverted -- caused more
-  problems than it solved: an oversized grey box, half-sunk into the
-  runway plane, floating disconnected from the terrain). This brings back
-  the original problem it was meant to fix: `Domnesti-Slanic-5.world`'s
-  heightmap collision at the spawn XY isn't readable off its SDF, so a
-  fixed spawn Z (currently 100) can still land the plane inside the
-  terrain rather than on it -- not yet re-solved.
-- Confirmed live (real screenshots via `--headless-rendering` + the
-  `/gui/screenshot` service) that only the fuselage renders on the real
-  `hirrus` model -- both wing panels and both elevons are invisible, a
-  gz-sim submesh-extraction bug reproduced independently in
-  AeroCanyon_Guard's own `tricopter_ap` model (same mesh file, same
-  bug, pre-existing there too). A whole-mesh-file visual (no
-  `<submesh>` filter) renders correctly in isolation; wiring that into
-  `model.sdf` is in progress, not yet confirmed on the real model with
-  its full sensor/collision setup, where the same swap did not visibly
-  fix it in the last live test.
+- No measured stall speed for this airframe -- `data/Polara.txt`'s own
+  AVL sweep only covers alpha<=8.4deg (normal cruise trim), so
+  `model.sdf`'s stall-region `LiftDrag` coefficients (`alpha_stall`,
+  `cla_stall`, `cda_stall`) are still placeholders carried over from the
+  tricopter VTOL variant, not measured for this airframe.
+- `Domnesti-Slanic-5.world` (the real-terrain alternative, not the
+  default) still spawns hirrus at a fixed guessed Z (currently 90) --
+  the heightmap collision's exact elevation at that XY isn't readable
+  off its SDF, so this can still land the plane inside the terrain
+  rather than on it. A `models/launch_ramp` platform was tried there and
+  reverted (caused more problems than it solved). Not an issue on
+  `hirrus_runway.sdf`, the default/active world, which has a flat runway
+  plane instead.
+- Landing gear (nose + 2 main wheels) is a first-pass layout (positions,
+  wheel sizes) verified live to settle stably and hold the airframe clear
+  of the ground -- not yet flown through an actual takeoff roll to check
+  taxi/rotation behaviour.
