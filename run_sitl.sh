@@ -1,7 +1,8 @@
 #!/bin/bash
-# Launch gz-sim (headless) for the Hirrus flying wing over the
-# Domnesti-Slanic-5 terrain. Full launch sequence (SITL, browser viewer)
-# is in README.md -- this script only does the gz sim half.
+# Launch gz-sim for the Hirrus flying wing on the runway world (the
+# active dev target -- runway alignment + launch-ramp/catapult tuning).
+# Full launch sequence (SITL, browser viewer) is in README.md -- this
+# script only does the gz sim half.
 set -euo pipefail
 
 HIRRUS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -31,16 +32,11 @@ fi
 export GZ_SIM_SYSTEM_PLUGIN_PATH="$HOME/ardupilot_gazebo/build:${GZ_SIM_SYSTEM_PLUGIN_PATH:-}"
 export GZ_SIM_RESOURCE_PATH="$HIRRUS_DIR/models:$HIRRUS_DIR/worlds:$HOME/ardupilot_gazebo/models:$HOME/ardupilot_gazebo/worlds:${GZ_SIM_RESOURCE_PATH:-}"
 
-# -r: start running immediately. Domnesti-Slanic-5.world's own GUI config
-# sets <start_paused>true</start_paused>, and without -r the sim just sits
-# paused -- physics never steps, so ArduPilotPlugin never sends FDM data
-# and arduplane loops "No JSON sensor message received" forever, looking
-# like a connection problem when it's actually just a paused sim.
-#
-# Domnesti-Slanic-5.world lives one level under worlds/ (its own directory,
-# alongside its own mesh/ folder that its relative mesh URIs resolve
-# against) -- passed as a full path rather than relying on
-# GZ_SIM_RESOURCE_PATH to find it, since that only lists worlds/ itself.
-WORLD_FILE="$HIRRUS_DIR/worlds/Domnesti-Slanic-5/Domnesti-Slanic-5.world"
+# -r: start running immediately (some worlds default to paused, e.g.
+# Domnesti-Slanic-5.world's own GUI config sets <start_paused>true</start_paused>
+# -- without -r the sim just sits frozen, physics never steps, and
+# arduplane loops "No JSON sensor message received" forever, looking like
+# a connection problem when it's actually just a paused sim).
+WORLD_FILE="$HIRRUS_DIR/worlds/hirrus_runway.sdf"
 
 exec gz sim -r -v4 "$WORLD_FILE"

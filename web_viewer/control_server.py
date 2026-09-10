@@ -1,10 +1,10 @@
-#!/usr/bin/env python3
+#57!/usr/bin/env python3
 """control_server.py
 
 Ported from AeroCanyon_Guard/web_viewer/control_server.py, dropped down to
 plain pymavlink instead of rclpy/MAVROS: Hirrus's SITL stack has no ROS2
 layer at all (see ~/Hirrus/run_sitl.sh), so this talks straight to
-ArduPilot's own MAVLink TCP port (5760) instead of going through mavros_node.
+ArduPilot's own MAVLink TCP port (5762) instead of going through mavros_node.
 Also dropped everything specific to AeroCanyon's tricopter VTOL (QHOVER/
 QLAND/transition/stick_mixing, the wind-field topics) -- Hirrus is a plain
 ArduPlane flying wing with none of that.
@@ -35,7 +35,7 @@ from rc_pwm import (MODE_AUTO, MODE_CIRCLE, MODE_FLY_BY_WIRE_A, MODE_MANUAL,
 _port_args = [a for a in sys.argv[1:] if not a.startswith('--')]
 PORT = int(_port_args[0]) if _port_args else 8080
 FDM_URL = next((a.split('=', 1)[1] for a in sys.argv[1:]
-                 if a.startswith('--mavlink=')), 'tcp:127.0.0.1:5760')
+                 if a.startswith('--mavlink=')), 'tcp:127.0.0.1:5762')
 CONTROL_HZ = 20
 # Mode 2 RC sticks are proportional and self-centering -- the browser
 # streams the live stick position continuously (see index.html) rather

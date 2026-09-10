@@ -1,6 +1,28 @@
 <?xml version="1.0" ?>
 <sdf version="1.9">
     <world name="Domnesti-Slanic-5">
+    <model name="safety_floor">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>10000 10000</size>
+            </plane>
+          </geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>0</mu>
+                <mu2>0</mu2>
+              </ode>
+            </friction>
+          </surface>
+        </collision>
+      </link>
+      <pose>0 0 1 0 0.1 0</pose>
+    </model>
 
         <!-- Plugin for simulating physics -->
         <plugin
@@ -397,7 +419,7 @@
 
         <!-- Hirrus, spawned at the tile's own launch-point origin (0,0),
              the same reference the buildings model's own pose comment
-             above is measured against. Z=100 is a first-pass safe-height
+             above is measured against. Z=90 is a first-pass safe-height
              guess, not a measured ground elevation at that XY -- the
              heightmap's collision <pose> z=-12.0 combined with its 21.4m
              total relief only bounds ground level roughly to [-23,-1] in
@@ -411,7 +433,7 @@
              here if it turns out to spawn inside/far above the terrain. -->
         <include>
             <uri>model://hirrus</uri>
-            <pose degrees="true">0 0 100 0 0 0</pose>
+            <pose degrees="true">0 0 90 0 0 0</pose>
         </include>
 
     </world>

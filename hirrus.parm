@@ -32,3 +32,25 @@ INS_GYR_CAL     0
 
 ARSPD_TYPE      0
 BATT_MONITOR    4
+
+# Catapult/hand-launch detection (ArduPlane/Parameters.cpp, real params --
+# verified against source, not the fabricated SIM_PLT_LAUNCH_A/T some AI
+# summaries invent). This is pure accelerometer-threshold logic in
+# ArduPilot's own flight code -- it works the same regardless of physics
+# backend, unlike ArduPilot's SEPARATE internal SIM_Plane.cpp catapult
+# force simulation (SIM_Plane's own "-catapult"/"-bungee" frame strings),
+# which only runs for --model plane, NOT our --model JSON/gz-sim setup.
+# The actual forward force here comes from gz-sim (worlds/hirrus_runway.sdf's
+# safety_floor launch slope, or hirrus's own manually-fired ApplyLinkWrench
+# impulse, see model.sdf's "Catapult launch" comment) -- these params just
+# tell ArduPilot when to trust that a real launch happened and open the
+# throttle, same as a real catapult/hand-launch airframe.
+TKOFF_THR_MINACC 15
+TKOFF_ACCEL_CNT  1
+TKOFF_THR_DELAY  2
+# Recommended for hand/catapult launch (ArduPlane/Parameters.cpp's own
+# TKOFF_TDRAG_SPD1/TKOFF_ROTATE_SPD descriptions): zero means skip the
+# ground-roll "tail hold"/rotate-speed staging that only makes sense for
+# a wheeled takeoff run.
+TKOFF_TDRAG_SPD1 0
+TKOFF_ROTATE_SPD 0
