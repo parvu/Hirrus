@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<COLLADA xmlns="http://www.collada.org/2005/11/COLLADASchema" version="1.4.1">
+<asset><up_axis>Z_UP</up_axis></asset>
+<library_images>
+<image id="runway_markings_tex" name="runway_markings_tex"><init_from>runway.png</init_from></image>
+</library_images>
+<library_effects>
+<effect id="runway_markings_eff0"><profile_COMMON>
+<newparam sid="runway_markings_surf"><surface type="2D"><init_from>runway_markings_tex</init_from></surface></newparam>
+<newparam sid="runway_markings_samp"><sampler2D><source>runway_markings_surf</source></sampler2D></newparam>
+<technique sid="common"><phong>
+<diffuse><texture texture="runway_markings_samp" texcoord="UVMAP"/></diffuse>
+</phong></technique>
+</profile_COMMON></effect>
+</library_effects>
+<library_materials>
+<material id="runway_markings_mat0" name="runway_markings_mat0"><instance_effect url="#runway_markings_eff0"/></material>
+</library_materials>
+<library_geometries>
+<geometry id="runway_markings_geom0" name="runway_markings"><mesh>
+<source id="runway_markings_geom0-positions">
+<float_array id="runway_markings_geom0-positions-array" count="12">-750.0 -50.0 0.0 750.0 -50.0 0.0 750.0 50.0 0.0 -750.0 50.0 0.0</float_array>
+<technique_common><accessor source="#runway_markings_geom0-positions-array" count="4" stride="3">
+<param name="X" type="float"/><param name="Y" type="float"/><param name="Z" type="float"/>
+</accessor></technique_common>
+</source>
+<source id="runway_markings_geom0-normals">
+<float_array id="runway_markings_geom0-normals-array" count="12">0 0 1 0 0 1 0 0 1 0 0 1</float_array>
+<technique_common><accessor source="#runway_markings_geom0-normals-array" count="4" stride="3">
+<param name="X" type="float"/><param name="Y" type="float"/><param name="Z" type="float"/>
+</accessor></technique_common>
+</source>
+<source id="runway_markings_geom0-uv">
+<float_array id="runway_markings_geom0-uv-array" count="8">0.0 0.0 1.0 0.0 1.0 1.0 0.0 1.0</float_array>
+<technique_common><accessor source="#runway_markings_geom0-uv-array" count="4" stride="2">
+<param name="S" type="float"/><param name="T" type="float"/>
+</accessor></technique_common>
+</source>
+<vertices id="runway_markings_geom0-vertices"><input semantic="POSITION" source="#runway_markings_geom0-positions"/></vertices>
+<triangles count="2" material="runway_markings_mat0">
+<input semantic="VERTEX" source="#runway_markings_geom0-vertices" offset="0"/>
+<input semantic="NORMAL" source="#runway_markings_geom0-normals" offset="1"/>
+<input semantic="TEXCOORD" source="#runway_markings_geom0-uv" offset="2" set="0"/>
+<p>0 0 0 1 1 1 2 2 2 0 0 0 2 2 2 3 3 3</p>
+</triangles>
+</mesh></geometry>
+</library_geometries>
+<library_visual_scenes><visual_scene id="runway_markings_scene0" name="runway_markings_scene0">
+<node id="runway_markings_node0" name="runway_markings"><instance_geometry url="#runway_markings_geom0">
+<bind_material><technique_common><instance_material symbol="runway_markings_mat0" target="#runway_markings_mat0">
+<bind_vertex_input semantic="UVMAP" input_semantic="TEXCOORD" input_set="0"/>
+</instance_material></technique_common></bind_material>
+</instance_geometry></node>
+</visual_scene></library_visual_scenes>
+<scene><instance_visual_scene url="#runway_markings_scene0"/></scene>
+</COLLADA>

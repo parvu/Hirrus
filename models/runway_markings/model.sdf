@@ -1,0 +1,31 @@
+<?xml version='1.0'?>
+<sdf version="1.9">
+  <model name="runway_markings">
+    <!-- Webview-only overlay: model://runway's own "runway" visual is a
+         <plane> with an SDF <pbr><metal><albedo_map> texture (the actual
+         zebra-stripe/number markings) -- gz sim's OGRE renderer supports
+         that material extension, but the browser viewer's bundled
+         three.js r86 ColladaLoader (gz3d.js) has no PBR material handling
+         at all (grepped: no "pbr"/"albedo" anywhere in its material code),
+         so the markings never appeared there regardless of camera
+         distance -- not a distance/LOD issue as first suspected. Fix:
+         a plain COLLADA quad with a standard <diffuse><texture> (which
+         the same ColladaLoader DOES support, it's a real texture-mapped
+         mesh) laid directly on top of the runway's own plane. Same size
+         (1500x100) and same local yaw (90deg) as that plane visual, so
+         positioning this model at the runway model's own world pose lines
+         the two up exactly. Purely cosmetic/webview-side -- gz sim's own
+         render is untouched and still uses the original pbr-textured
+         plane, this model is additive. -->
+    <static>true</static>
+    <link name="link">
+      <visual name="markings">
+        <pose degrees="true">0 0 0.02 0 0 90</pose>
+        <cast_shadows>false</cast_shadows>
+        <geometry>
+          <mesh><uri>model://runway_markings/meshes/runway_markings.dae</uri></mesh>
+        </geometry>
+      </visual>
+    </link>
+  </model>
+</sdf>
