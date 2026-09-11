@@ -93,7 +93,36 @@ class MavlinkLink:
         self._stick_time = {'yaw': 0.0, 'throttle': 0.0, 'roll': 0.0, 'pitch': 0.0}
         self._hw_last_seen = 0.0
 
+        # Mode/armed readback + last command result: the web UI has no other
+        # way to tell a rejected command (e.g. ARM failing pre-arm checks)
+        # from an accepted one that just has no visible effect on the ground
+        # (e.g. RTL while disarmed) -- both looked identical from the
+        # buttons alone.
+        self._mode = 0
+        self._armed = False
+        self._last_ack = None
+
         threading.Thread(target=self._loop, daemon=True).start()
+        threading.Thread(target=self._read_loop, daemon=True).start()
+
+    def _read_loop(self):
+        while True:
+            msg = self.master.recv_match(
+                type=['HEARTBEAT', 'COMMAND_ACK'], blocking=True)
+            if msg is None:
+                continue
+            with self._lock:
+                if msg.get_type() == 'HEARTBEAT':
+                    self._mode = msg.custom_mode
+                    self._armed = bool(
+                        msg.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED)
+                else:
+                    self._last_ack = {'command': msg.command, 'result': msg.result}
+
+    def status(self):
+        with self._lock:
+            return {'mode': self._mode, 'armed': self._armed,
+                    'last_ack': self._last_ack}
 
     def set_stick(self, hw=False, **axes):
         now = time.monotonic()
@@ -109,6 +138,8 @@ class MavlinkLink:
             return time.monotonic() - self._hw_last_seen <= RC_PRESENT_TIMEOUT_S
 
     def apply_command(self, cmd):
+        with self._lock:
+            self._last_ack = None
         if cmd == 'arm':
             arm(self.master, True)
         elif cmd == 'disarm':
@@ -158,6 +189,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._handle_command()
         elif self.path.startswith('/api/rc_status'):
             self._handle_rc_status()
+        elif self.path.startswith('/api/status'):
+            self._handle_status()
         else:
             super().do_GET()
 
@@ -189,6 +222,16 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def _handle_rc_status(self):
         import json
         body = json.dumps({'present': self.link.rc_present()}).encode()
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/json')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Content-Length', str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _handle_status(self):
+        import json
+        body = json.dumps(self.link.status()).encode()
         self.send_response(200)
         self.send_header('Content-Type', 'application/json')
         self.send_header('Access-Control-Allow-Origin', '*')

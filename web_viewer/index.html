@@ -626,6 +626,14 @@
       <button onclick="confirmManual()" style="background:#611;color:#fff;">MANUAL (raw passthrough)</button>
       <button id="followBtn" onclick="toggleFollow()">follow: on</button>
     </div>
+    <!-- Mode/armed/last-command readback: without this, a rejected command
+         (e.g. ARM failing pre-arm checks) and an accepted one with no
+         visible ground effect (e.g. RTL while disarmed) looked identical --
+         the buttons just seemed to "do the wrong thing" or "do nothing". -->
+    <div id="modeStatus" style="position: fixed; top: 40px; left: 50%;
+        transform: translateX(-50%); font-family: sans-serif; font-size: 13px;
+        z-index: 10; background: rgba(255,255,255,0.85); padding: 3px 8px;
+        border-radius: 4px;">mode: -- | armed: --</div>
 
     <script>
       function manualCmd(cmd) {
@@ -742,6 +750,37 @@
       }
       updateRcStatus();
       setInterval(updateRcStatus, 500);
+
+      // ArduPlane custom_mode -> name, same numbering as rc_pwm.py's own
+      // MODE_* constants (ArduPlane/mode.h) plus a few more that show up
+      // if the FC picks one on its own (e.g. failsafes).
+      var MODE_NAMES = {0: 'MANUAL', 1: 'CIRCLE', 2: 'STABILIZE',
+        3: 'TRAINING', 4: 'ACRO', 5: 'FBWA', 6: 'FBWB', 7: 'CRUISE',
+        8: 'AUTOTUNE', 10: 'AUTO', 11: 'RTL', 12: 'LOITER', 13: 'TAKEOFF',
+        15: 'GUIDED', 16: 'INITIALISING', 17: 'QSTABILIZE', 18: 'QHOVER',
+        19: 'QLOITER', 20: 'QLAND', 21: 'QRTL'};
+      // MAV_RESULT (common.xml) -- only the ones a GCS command realistically
+      // gets back.
+      var MAV_RESULT_NAMES = {0: 'ACCEPTED', 1: 'TEMPORARILY_REJECTED',
+        2: 'DENIED', 3: 'UNSUPPORTED', 4: 'FAILED', 5: 'IN_PROGRESS'};
+
+      function updateModeStatus() {
+        fetch('/api/status')
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            var text = 'mode: ' + (MODE_NAMES[data.mode] || data.mode) +
+              ' | armed: ' + (data.armed ? 'YES' : 'no');
+            if (data.last_ack) {
+              var resultName = MAV_RESULT_NAMES[data.last_ack.result] ||
+                data.last_ack.result;
+              text += ' | last command: ' + resultName;
+            }
+            document.getElementById('modeStatus').textContent = text;
+          })
+          .catch(function () { /* server not up yet -- try again next poll */ });
+      }
+      updateModeStatus();
+      setInterval(updateModeStatus, 500);
     </script>
   </body>
 </html>
