@@ -34,30 +34,57 @@
              flying wing with (almost) no mass out of the wing plane --
              good evidence this mass file is real and self-consistent.
 
-             CAVEAT, no longer silently unresolved: this CG originally sat
-             ~0.26m ahead of tricopter_ap's own neutral-point estimate
-             (x=-0.109, area-weighted quarter-chord of the two wing
-             panels) -- an ~84% MAC static margin, far outside the normal
-             5-15% MAC range for a tailless design. Live-tested exactly
-             the "fly FBWA straight-and-level and trim" check this comment
-             used to recommend: at the original x=0.149383, the aircraft
-             nosed over to ~-87deg pitch within 3 seconds and never
-             recovered -- WITH THROTTLE FULLY OFF too (rules out prop
-             reaction torque; this is pure static-margin/trim authority,
-             confirming the 84% figure was a real problem, not a
-             theoretical one).
+             CAVEAT, since resolved -- turned out not to be a CG problem:
+             this CG sits ~0.26m ahead of tricopter_ap's own neutral-point
+             estimate (x=-0.109, area-weighted quarter-chord of the two
+             wing panels), an ~84% MAC static margin, far outside the
+             normal 5-15% MAC range for a tailless design -- which looked
+             alarming and was the first suspect after a live "fly FBWA
+             straight-and-level and trim" test nosed over to ~-87deg pitch
+             within 3 seconds, unrecoverable, even with throttle fully
+             off. Shifting the CG aft toward the NP estimate (as a quick
+             pose-only trim test, not a recomputed mass file) measurably
+             improved things, which pointed at CG -- but the REAL bug was
+             the wing/elevon LiftDrag panels' <control_joint_rad_to_cl>
+             being wrong-signed (see those plugins' own comment): a
+             sign-inverted pitch response is a genuine positive-feedback
+             divergence, unpowered and CG-independent, which explains the
+             "throttle off still dives" result perfectly and was never
+             actually distinguished from a static-margin problem by that
+             test alone. Once the sign was fixed, level flight became
+             achievable again at THIS original CG -- confirmed live
+             ("looks better, is trying to fly"). Reverted the aft shift;
+             this is the original AVL mass file's CG, unmodified. The 84%
+             static-margin figure is still real and still not explained
+             (either the NP estimate is stale, or this mass file really is
+             a deliberately forward, hand-launch-safe CG) -- just no
+             longer the explanation for the dive, so not chased further
+             here.
 
-             Shifted aft toward the NP estimate as an empirical test (same
-             "add ballast, fly, see if it trims" approach a real aircraft's
-             first CG check uses -- NOT a recomputed mass/inertia, just the
-             <pose> reference point moved; inertia below is still the
-             original AVL mass file's, an approximation until this is
-             actually re-run through AVL with the new CG).
-             Back-solving the 0.26m/84% figures for MAC: MAC = 0.258383m /
-             0.84 = 0.307599m. Targeting a normal 12% static margin:
-             x_new = NP + 0.12*MAC = -0.109 + 0.036912 = -0.072088.
-             Z unchanged (not part of longitudinal static margin). -->
-        <pose>-0.072088 0 -0.086568 0 0 0</pose>
+             Re-applied anyway: with the LiftDrag sign fixed, the aft
+             shift is a genuine independent improvement on top of that,
+             not a workaround for it -- 84% static margin is still far
+             outside the normal 5-15% range regardless of what fixed the
+             dive. First attempt used the full 12% target (x=-0.072088,
+             same as the original shift) -- landing-gear geometry
+             disagreed: main_wheel axle sits at x=0.0, so a CG BEHIND that
+             (x<0) leaves zero weight on the nose wheel (moments about
+             the main axle: nose_wheel_load_fraction = (cg_x - main_x) /
+             (nose_x - main_x) = (-0.072088-0)/(0.35-0) = negative), which
+             is exactly "nose wheel in the air" -- a real tricycle-gear
+             ground-stability constraint, independent of the flight-
+             dynamics static-margin question above, and this airframe's
+             main gear position wasn't designed with a CG this far aft in
+             mind. Settled for a smaller shift that respects BOTH: x=0.05
+             keeps a real 14.3% of the aircraft's weight on the nose wheel
+             (vs. 42.7% at the untouched original 0.149383) while cutting
+             the static margin from 84% down to ~52% -- a genuine
+             improvement, just not all the way to the 12% aero-only
+             target. Reaching that would need the main gear moved aft
+             too (not done here, a separate geometry change with its own
+             consequences -- not attempted without that being asked for
+             explicitly). -->
+        <pose>0.05 0 -0.086568 0 0 0</pose>
         <mass>6.500</mass>
         <inertia>
           <ixx>1.213214</ixx>
@@ -335,10 +362,24 @@
       <!-- Hinge line measured off eleron_stg (Hirrus.dae), reused verbatim
            from tricopter_ap -- see that file's own comment for the
            derivation (forward edge x=-0.317, midspan y=1.2425, mid
-           z=-0.111). -->
+           z=-0.111).
+           Axis corrected from the old "0 1 0" (pure spanwise) to the
+           REAL swept hinge direction: this is a swept flying wing, and
+           the elevon's own front/hinge edge sweeps with it, not
+           perpendicular to the fuselage centerline. Computed directly
+           from left_elevon.dae's own vertex data (not guessed): fit a
+           line through the hinge-side vertices (local X>0.02, the front/
+           attached edge per this same file's chordwise analysis), giving
+           dx/dy=-0.1602 -> normalized axis (-0.1581, 0.9874, 0). A pure
+           Y-axis hinge on a swept edge doesn't rotate the panel exactly
+           the way a real continuously-attached swept hinge would --
+           small but real, and was very likely part of what looked like
+           "rotating about the inner edge" (the spanwise mesh-twist fix
+           elsewhere in this file was the other, independent part of
+           that). -->
       <pose>-0.317 1.2425 -0.111 0 0 0</pose>
       <axis>
-        <xyz>0 1 0</xyz>
+        <xyz>-0.1581 0.9874 0</xyz>
         <limit>
           <lower>-0.78</lower>
           <upper>0.78</upper>
@@ -351,9 +392,11 @@
     <joint name="right_elevon_joint" type="revolute">
       <parent>base_link</parent>
       <child>right_elevon</child>
+      <!-- Mirrored axis, computed the same way from right_elevon.dae's
+           own vertex data: dx/dy=+0.1602 -> (0.1582, 0.9874, 0). -->
       <pose>-0.317 -1.2425 -0.111 0 0 0</pose>
       <axis>
-        <xyz>0 1 0</xyz>
+        <xyz>0.1582 0.9874 0</xyz>
         <limit>
           <lower>-0.78</lower>
           <upper>0.78</upper>
@@ -400,24 +443,32 @@
       <pose>-0.495 0 -0.06 0 0 0</pose>
       <inertial>
         <pose>0 0 0 0 0 0</pose>
-        <!-- 12x7 prop (12in diameter, 7in pitch -- standard RC nomenclature):
-             mass 0.018kg, a plausible weight for a 12in nylon/plastic prop
-             (was 0.005kg, sized for the old ~8in prop). ixx (the ONLY
-             inertia component that matters -- propeller_joint is a 1-DOF
-             revolute about local X, so only the spin-axis inertia enters
-             the joint's angular-acceleration equation) modeled as a rod
-             of length = diameter: (1/12)*0.018*0.3048^2 = 1.394e-04.
-             iyy/izz left as inherited placeholders (tricopter_ap leftovers,
-             never derived for this geometry) -- they don't affect this
-             joint's dynamics either way. -->
-        <mass>0.018</mass>
+        <!-- 15x8.75 prop (15in diameter, 8.75in pitch -- kept the same
+             7/12 pitch/diameter ratio as the old 12x7, since only diameter
+             was specified; scales a0 below to the exact same value, see
+             that plugin's own comment). Was 12in/0.018kg -- scaled mass by
+             diameter^3 (same rule of thumb used for the 8in->12in jump
+             this comment used to describe): 0.018*(15/12)^3 = 0.03516kg.
+             ixx (the ONLY inertia component that matters -- propeller_joint
+             is a 1-DOF revolute about local X) as a rod of length=diameter:
+             (1/12)*0.03516*0.381^2 = 4.254e-04.
+             iyy/izz don't affect this joint's dynamics (still not derived
+             for this geometry) but DO have to satisfy gz-sim's inertia-
+             tensor validity check (Ixx <= Iyy+Izz, physically real for
+             any rigid body) -- the old inherited placeholders (1.667e-4,
+             1.676e-4) worked fine against the smaller 12in ixx but failed
+             outright once ixx grew for 15in ("invalid inertia" load
+             error). Scaled by the same ratio to ixx as those placeholders
+             originally had (iyy/ixx=1.196, izz/ixx=1.202): 5.088e-4,
+             5.113e-4. -->
+        <mass>0.03516</mass>
         <inertia>
-          <ixx>1.394e-04</ixx>
+          <ixx>4.254e-04</ixx>
           <ixy>0</ixy>
           <ixz>0</ixz>
-          <iyy>0.000166704</iyy>
+          <iyy>5.088e-04</iyy>
           <iyz>0</iyz>
-          <izz>0.000167604</izz>
+          <izz>5.113e-04</izz>
         </inertia>
       </inertial>
       <!-- Restored: this link's own "elice" submesh visual (removed for
@@ -484,13 +535,26 @@
          Axle heights (below) were shifted to keep the same wheel-BOTTOM
          clearance as before despite the smaller radius, so
          worlds/hirrus_runway.sdf's own spawn-height math (which assumes
-         a specific wheel-bottom offset) doesn't need re-deriving. -->
+         a specific wheel-bottom offset) doesn't need re-deriving.
+
+         Raised again (wheel-bottom -0.21 -> -0.28, all 3 wheels) for the
+         15in propeller: at the old -0.21 clearance the prop hub sat only
+         0.15m up (base_link settle height 0.21 + propeller link's own
+         z=-0.06), and even the OLD 12in prop's 0.1524m tip radius already
+         put the blade tip 2.4mm BELOW ground (a real, if marginal, strike
+         -- checked directly, not assumed); the 15in prop's 0.1905m radius
+         would be 4cm into the ground at the old height. +0.07m of gear
+         gives a 0.22m hub height, 0.0295m (~3cm) of actual tip clearance
+         for the 15in prop. worlds/hirrus_runway.sdf's aircraft spawn Z
+         updated to match (0.24 -> 0.31, same "wheel-bottom + 0.03m
+         clearance" formula as before, just against the new -0.28). -->
     <link name="nose_wheel">
-      <!-- radius 0.05->0.03. axle z=-0.16->-0.18 so bottom stays at
-           -0.21 (unchanged), still clear of the fuselage mesh's own
-           lowest point (-0.1341, see model.sdf's earlier catapult-comment
+      <!-- radius 0.05->0.03. axle z=-0.16->-0.18->-0.25 (see this link's
+           parent comment for the -0.28 wheel-bottom raise) so bottom
+           stays at -0.28, still clear of the fuselage mesh's own lowest
+           point (-0.1341, see model.sdf's earlier catapult-comment
            history). -->
-      <pose>0.35 0 -0.18 0 0 0</pose>
+      <pose>0.35 0 -0.25 0 0 0</pose>
       <inertial>
         <mass>0.001</mass>
         <inertia><ixx>4.5e-07</ixx><iyy>4.5e-07</iyy><izz>4.5e-07</izz></inertia>
@@ -501,6 +565,14 @@
           <cylinder><radius>0.03</radius><length>0.015</length></cylinder>
         </geometry>
         <surface>
+          <contact>
+            <ode>
+              <kp>100000</kp>
+              <kd>10.0</kd>
+              <max_vel>10.0</max_vel>
+              <min_depth>0.001</min_depth>
+            </ode>
+          </contact>
           <friction>
             <ode><mu>1.0</mu><mu2>1.0</mu2></ode>
           </friction>
@@ -527,9 +599,11 @@
     </joint>
 
     <!-- radius 0.06->0.035, mass 0.03->0.001 (weightless, see nose_wheel's
-         own comment). axle z=-0.15->-0.175 so bottom stays at -0.21. -->
+         own comment). axle z=-0.15->-0.175->-0.245 (see nose_wheel's
+         parent comment for the 15in-prop-clearance raise) so bottom
+         stays at -0.28. -->
     <link name="left_main_wheel">
-      <pose>0.0 0.3 -0.175 0 0 0</pose>
+      <pose>0.0 0.3 -0.245 0 0 0</pose>
       <inertial>
         <mass>0.001</mass>
         <inertia><ixx>6.125e-07</ixx><iyy>6.125e-07</iyy><izz>6.125e-07</izz></inertia>
@@ -540,6 +614,14 @@
           <cylinder><radius>0.035</radius><length>0.018</length></cylinder>
         </geometry>
         <surface>
+          <contact>
+            <ode>
+              <kp>100000</kp>
+              <kd>10.0</kd>
+              <max_vel>10.0</max_vel>
+              <min_depth>0.001</min_depth>
+            </ode>
+          </contact>
           <friction>
             <ode><mu>1.0</mu><mu2>1.0</mu2></ode>
           </friction>
@@ -566,7 +648,7 @@
     </joint>
 
     <link name="right_main_wheel">
-      <pose>0.0 -0.3 -0.175 0 0 0</pose>
+      <pose>0.0 -0.3 -0.245 0 0 0</pose>
       <inertial>
         <mass>0.001</mass>
         <inertia><ixx>6.125e-07</ixx><iyy>6.125e-07</iyy><izz>6.125e-07</izz></inertia>
@@ -577,6 +659,14 @@
           <cylinder><radius>0.035</radius><length>0.018</length></cylinder>
         </geometry>
         <surface>
+          <contact>
+            <ode>
+              <kp>100000</kp>
+              <kd>10.0</kd>
+              <max_vel>10.0</max_vel>
+              <min_depth>0.001</min_depth>
+            </ode>
+          </contact>
           <friction>
             <ode><mu>1.0</mu><mu2>1.0</mu2></ode>
           </friction>
@@ -632,7 +722,19 @@
          alpha_stall/cla_stall/cda_stall: UNCHANGED placeholders --
          Polara.txt's sweep only covers alpha<=8.4deg (a normal-cruise
          trim sweep, not a stall test), so no real stall data exists yet
-         for this airframe. -->
+         for this airframe.
+
+         control_joint_rad_to_cl = +0.26 (all 4 panels, both signs tried
+         live): -0.26 looked correct by hand-derivation from the joint's
+         own rotation axis and hinge geometry, but flying it live it
+         nosed over into an unrecoverable dive within seconds regardless
+         of CG or throttle -- a real sign-inverted positive-feedback
+         divergence, not a static-margin problem (see base_link's own CG
+         comment, which chased CG first and had to walk it back once this
+         was found). +0.26 actually flies. Not re-re-deriving why the
+         hand math had the wrong sign -- the live behavior is the ground
+         truth here, matching this project's own standing practice of
+         trusting flight-test results over armchair sign derivations. -->
     <plugin filename="gz-sim-lift-drag-system" name="gz::sim::systems::LiftDrag">
       <a0>-0.052</a0>
       <cla>2.48</cla>
@@ -649,7 +751,7 @@
       <upward>0 0 1</upward>
       <link_name>base_link</link_name>
       <control_joint_name>left_elevon_joint</control_joint_name>
-      <control_joint_rad_to_cl>-0.26</control_joint_rad_to_cl>
+      <control_joint_rad_to_cl>0.26</control_joint_rad_to_cl>
     </plugin>
     <plugin filename="gz-sim-lift-drag-system" name="gz::sim::systems::LiftDrag">
       <a0>-0.021</a0>
@@ -667,7 +769,7 @@
       <upward>0 0 1</upward>
       <link_name>base_link</link_name>
       <control_joint_name>left_elevon_joint</control_joint_name>
-      <control_joint_rad_to_cl>-0.26</control_joint_rad_to_cl>
+      <control_joint_rad_to_cl>0.26</control_joint_rad_to_cl>
     </plugin>
     <plugin filename="gz-sim-lift-drag-system" name="gz::sim::systems::LiftDrag">
       <a0>-0.052</a0>
@@ -685,7 +787,7 @@
       <upward>0 0 1</upward>
       <link_name>base_link</link_name>
       <control_joint_name>right_elevon_joint</control_joint_name>
-      <control_joint_rad_to_cl>-0.26</control_joint_rad_to_cl>
+      <control_joint_rad_to_cl>0.26</control_joint_rad_to_cl>
     </plugin>
     <plugin filename="gz-sim-lift-drag-system" name="gz::sim::systems::LiftDrag">
       <a0>-0.021</a0>
@@ -703,7 +805,7 @@
       <upward>0 0 1</upward>
       <link_name>base_link</link_name>
       <control_joint_name>right_elevon_joint</control_joint_name>
-      <control_joint_rad_to_cl>-0.26</control_joint_rad_to_cl>
+      <control_joint_rad_to_cl>0.26</control_joint_rad_to_cl>
     </plugin>
     <!-- Wingtip winglets -- passive, fixed (no control_joint_name), reused
          verbatim from tricopter_ap: no dedicated small-fin airfoil data
@@ -746,16 +848,18 @@
          blocks at opposite cp (so off-axis moments cancel) convert that
          spin into forward thrust. cp/forward/upward permuted for this
          prop's spin axis (X here vs Z there).
-         12x7 prop (12in diameter, 7in pitch): cp at 75% of the 0.1524m
-         tip radius = 0.1143m (was 0.0724m, an ~8in-diameter prop's own
-         station). area scaled by (new_cp/old_cp)^2 = 0.004*(0.1143/
-         0.0724)^2 = 0.00997, keeping the same blade-element proportions.
-         a0 (this blade-element hack's stand-in for geometric pitch angle)
-         recomputed from the real pitch definition, atan(pitch/(2*pi*cp)):
-         atan(0.1778/(2*pi*0.1143)) = 0.2427 rad (13.9deg), replacing the
-         old 0.3 rad that had no stated pitch behind it. cla/cda/stall
-         coefficients unchanged (still tricopter_ap's rotor placeholders,
-         not re-derived for this specific prop's airfoil). -->
+         15x8.75 prop (15in diameter, 8.75in pitch -- same 7/12
+         pitch/diameter ratio as the old 12x7): cp at 75% of the new
+         0.1905m tip radius = 0.142875m (was 0.1143m for 12in). area
+         scaled by (new_cp/old_cp)^2 = 0.00997*(0.142875/0.1143)^2 =
+         0.01558, keeping the same blade-element proportions. a0 recomputed
+         from atan(pitch/(2*pi*cp)) = atan(0.22225/(2*pi*0.142875)) =
+         0.2427 rad -- IDENTICAL to the 12x7 value, because holding the
+         pitch/diameter ratio fixed holds this angle fixed too (the cp
+         station and the pitch both scale by the same diameter ratio, so
+         it cancels). cla/cda/stall coefficients unchanged (still
+         tricopter_ap's rotor placeholders, not re-derived for this
+         specific prop's airfoil). -->
     <plugin filename="gz-sim-lift-drag-system" name="gz::sim::systems::LiftDrag">
       <a0>0.2427</a0>
       <alpha_stall>1.4</alpha_stall>
@@ -765,9 +869,9 @@
       <cla_stall>-0.025</cla_stall>
       <cda_stall>0.0</cda_stall>
       <cma_stall>0.0</cma_stall>
-      <area>0.00997</area>
+      <area>0.01558</area>
       <air_density>1.2041</air_density>
-      <cp>0 0.1143 0</cp>
+      <cp>0 0.142875 0</cp>
       <forward>0 0 1</forward>
       <upward>1 0 0</upward>
       <link_name>propeller</link_name>
@@ -781,9 +885,9 @@
       <cla_stall>-0.025</cla_stall>
       <cda_stall>0.0</cda_stall>
       <cma_stall>0.0</cma_stall>
-      <area>0.00997</area>
+      <area>0.01558</area>
       <air_density>1.2041</air_density>
-      <cp>0 -0.1143 0</cp>
+      <cp>0 -0.142875 0</cp>
       <forward>0 0 -1</forward>
       <upward>1 0 0</upward>
       <link_name>propeller</link_name>
@@ -969,8 +1073,21 @@
              off target, close enough) with heading rock-steady (spawn
              quaternion unchanged after 20s sustained full throttle -- no
              spin, well clear of the instability wall documented above,
-             which triggers pushing omega much higher, not lower). -->
-        <multiplier>2.70</multiplier>
+             which triggers pushing omega much higher, not lower).
+
+             Retuned again for the 15in/16000 RPM request (omega_target =
+             1675.5 rad/s). k scaling predicted from area*cp^3 gave
+             multiplier=14.23 -- live-tested and it settled at 1764.9
+             rad/s (~16856 RPM, 5.3% high), same kind of prediction miss
+             as the 8300 RPM case above. Back-solved the REAL k from that
+             data point: k = (14.23 - damping*1764.9)/1764.9^2 = 3.435e-6
+             (vs. the 3.876e-6 predicted -- real aero drag a bit lower
+             than the area/cp^3 scaling assumed). Resolving with this k
+             for omega=1675.5: multiplier = 0.002*1675.5 +
+             3.435e-6*1675.5^2 = 3.351 + 9.643 = 12.99 -- live-tested and
+             confirmed close enough (see this session's own verification
+             for the exact settled value). -->
+        <multiplier>12.99</multiplier>
         <offset>0</offset>
         <servo_min>1100</servo_min>
         <servo_max>1900</servo_max>

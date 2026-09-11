@@ -113,6 +113,19 @@ class MavlinkLink:
                 continue
             with self._lock:
                 if msg.get_type() == 'HEARTBEAT':
+                    # This link is shared with other MAVLink nodes (a GCS
+                    # like Mission Planner, relayed over the same mavproxy
+                    # link) which broadcast their OWN heartbeat too --
+                    # autopilot=MAV_AUTOPILOT_INVALID identifies those (a
+                    # real GCS heartbeat, not the vehicle). Without this
+                    # filter, armed/mode flickered between the real
+                    # vehicle's state and whatever a connected GCS's own
+                    # heartbeat last happened to say (always
+                    # armed=False/mode=0 for a GCS), which is exactly the
+                    # "arm shows armed then immediately false" symptom this
+                    # fixes.
+                    if msg.autopilot == mavutil.mavlink.MAV_AUTOPILOT_INVALID:
+                        continue
                     self._mode = msg.custom_mode
                     self._armed = bool(
                         msg.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED)

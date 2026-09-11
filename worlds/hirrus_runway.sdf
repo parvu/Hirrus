@@ -141,19 +141,20 @@
          derivation below, unedited). -->
     <include>
       <uri>model://hirrus</uri>
-      <!-- Z=0.24. Every prior version of this comment (0.196, 0.036 above
-         model origin, etc.) double-counted model.sdf's own top-level
-         <pose>0 0 0.246 0 0 0</pose> lift -- confirmed empirically
-         (dropped hirrus from Z=2 in an isolated test and watched it
-         settle) that gz's own reported/settable "hirrus" pose ALREADY
-         includes that lift; it is NOT a separate model-root frame you
-         then add 0.246 to. Real relationship, ground-truthed:
+      <!-- Z=0.31 (was 0.24). Every prior version of this comment (0.196,
+         0.036 above model origin, etc.) double-counted model.sdf's own
+         top-level <pose>0 0 0.246 0 0 0</pose> lift -- confirmed
+         empirically (dropped hirrus from Z=2 in an isolated test and
+         watched it settle) that gz's own reported/settable "hirrus" pose
+         ALREADY includes that lift; it is NOT a separate model-root frame
+         you then add 0.246 to. Real relationship, ground-truthed:
          model_z + wheel_local_bottom_z = world_ground_z. Wheel bottoms
-         sit at local z=-0.21 relative to base_link (axle -0.15/-0.16,
-         radius 0.06/0.05) -- solving model_z + (-0.21) = 0 (runway) +
-         0.03 (clearance) gives model_z = 0.24. Empirically confirmed
-         settle point (no clearance) was Z=0.21, consistent with this. -->
-      <pose degrees="true">465.975 50.025 0.24 0 0 135</pose>
+         used to sit at local z=-0.21 (giving model_z=0.24, empirically
+         confirmed settle point Z=0.21 with no clearance) -- raised to
+         -0.28 for 15in-propeller ground clearance (see model.sdf's own
+         landing-gear comment), so model_z + (-0.28) = 0 (runway) + 0.03
+         (clearance) gives model_z = 0.31. -->
+      <pose degrees="true">465.975 50.025 0.31 0 0 135</pose>
     </include>
   </world>
 </sdf>
