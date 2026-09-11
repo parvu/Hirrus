@@ -687,8 +687,13 @@
            listing it here also makes gz publish its velocity on this same
            topic, which is otherwise the only way to read prop RPM live
            for debugging (SERVO_OUTPUT_RAW only shows the commanded PWM,
-           not the actual achieved spin). -->
+           not the actual achieved spin). Wheel joints listed for the same
+           reason -- confirming free rolling (wheel omega matching
+           groundspeed/radius) vs. slipping/dragging. -->
       <joint_name>propeller_joint</joint_name>
+      <joint_name>nose_wheel_joint</joint_name>
+      <joint_name>left_main_wheel_joint</joint_name>
+      <joint_name>right_main_wheel_joint</joint_name>
     </plugin>
 
     <!-- Catapult launch (a manually-fired ApplyLinkWrench impulse) shelved
