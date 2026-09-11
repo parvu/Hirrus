@@ -103,25 +103,41 @@
            proof the mesh DATA itself is fine and the fault is
            specifically in gz's submesh-name-matching/extraction path.
 
-           Tradeoff accepted, not solved: the file also contains "elice"
-           (a static, non-spinning duplicate of the real pusher prop),
-           which this whole-file visual now includes too, underneath the
-           separate physics-driven "propeller" link below (that link
-           keeps its own working elice-only submesh reference -- single-
-           part submesh extraction DOES work, it's specifically the
-           multi-part case failing here) -- cosmetic double-prop overlap,
-           same tradeoff tricopter_ap's own comment (removed by this
-           point) originally worked around by excluding elice via
-           per-part submeshes, which is exactly the mechanism that's
-           broken. Upgrade path: get the wing/elevon submeshes extracting
-           correctly (file a gz-sim issue with this repro) and go back to
-           per-part visuals, excluding elice again. Same 180deg-yaw
-           mounting as before (points the mesh's own nose at +X). -->
+           No more double-prop: Hirrus.dae also contains "elice" (a
+           static, non-spinning duplicate of the real pusher prop), which
+           this whole-file visual used to include too, underneath the
+           separate physics-driven "propeller" link's own moving copy --
+           removed per pilot's request (visible in both gz sim and the
+           webview, not just one). Excluding just "elice" via a <submesh>
+           filter would hit the exact same multi-part extraction bug
+           described above, so instead this references a derived copy
+           (Hirrus_no_prop.dae) with elice's geometry dropped and every
+           other part kept, built via pyassimp (same tool as the elevon
+           meshes). One real trap hit and fixed while making it: assimp's
+           COLLADA import inserts its own Y-up -> Z-up axis-conversion
+           rotation on the scene's ROOT node (Hirrus.dae's own <asset> is
+           Blender-authored, Y-up) -- baking that root transform into the
+           exported vertices (an easy default since it looks like "just
+           another ancestor transform" to walk) rotated the whole mesh
+           90deg, wings pointing straight up instead of horizontal. Caught
+           via screenshot before it was ever committed, not shipped. Fix:
+           accumulate transforms starting from each top-level child's OWN
+           transform, skipping the root's -- gz-sim's own mesh loader
+           evidently doesn't apply that root conversion either (Hirrus.dae
+           referenced directly, unmodified, already rendered correctly),
+           so this exported copy needed to match that same behavior, not
+           the axis-converted result a naive full top-down walk gives you.
+           Re-verified after the fix in an isolated throwaway world before
+           touching this file. Same 180deg-yaw mounting as before (points
+           the mesh's own nose at +X). Upgrade path if gz's submesh
+           extraction ever gets fixed: go back to per-part <submesh>
+           visuals referencing Hirrus.dae directly instead of this
+           derived copy. -->
       <visual name="base_link_visual">
         <pose>0 0 0 0 0 3.14159265</pose>
         <geometry>
           <mesh>
-            <uri>model://hirrus/meshes/Hirrus.dae</uri>
+            <uri>model://hirrus/meshes/Hirrus_no_prop.dae</uri>
           </mesh>
         </geometry>
         <material>
