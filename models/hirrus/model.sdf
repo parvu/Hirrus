@@ -34,19 +34,30 @@
              flying wing with (almost) no mass out of the wing plane --
              good evidence this mass file is real and self-consistent.
 
-             CAVEAT, not silently resolved: this CG sits ~0.26m ahead of
-             tricopter_ap's own neutral-point estimate (x=-0.109, area-
-             weighted quarter-chord of the two wing panels) -- a ~84% MAC
-             static margin, far outside the normal 5-15% MAC range for a
-             tailless design. Either that NP estimate doesn't hold once
-             the wing's real cla (below) replaces the old placeholder, or
-             this specific AVL run's mass file reflects a deliberately
-             very-forward/hand-launch-safe CG rather than a cruise-
-             optimized one -- not something to guess past. Fly FBWA
-             straight-and-level and trim from here, same as any real
-             aircraft's first CG check (same advice tricopter_ap's own CG
-             comment gives). -->
-        <pose>0.149383 0 -0.086568 0 0 0</pose>
+             CAVEAT, no longer silently unresolved: this CG originally sat
+             ~0.26m ahead of tricopter_ap's own neutral-point estimate
+             (x=-0.109, area-weighted quarter-chord of the two wing
+             panels) -- an ~84% MAC static margin, far outside the normal
+             5-15% MAC range for a tailless design. Live-tested exactly
+             the "fly FBWA straight-and-level and trim" check this comment
+             used to recommend: at the original x=0.149383, the aircraft
+             nosed over to ~-87deg pitch within 3 seconds and never
+             recovered -- WITH THROTTLE FULLY OFF too (rules out prop
+             reaction torque; this is pure static-margin/trim authority,
+             confirming the 84% figure was a real problem, not a
+             theoretical one).
+
+             Shifted aft toward the NP estimate as an empirical test (same
+             "add ballast, fly, see if it trims" approach a real aircraft's
+             first CG check uses -- NOT a recomputed mass/inertia, just the
+             <pose> reference point moved; inertia below is still the
+             original AVL mass file's, an approximation until this is
+             actually re-run through AVL with the new CG).
+             Back-solving the 0.26m/84% figures for MAC: MAC = 0.258383m /
+             0.84 = 0.307599m. Targeting a normal 12% static margin:
+             x_new = NP + 0.12*MAC = -0.109 + 0.036912 = -0.072088.
+             Z unchanged (not part of longitudinal static margin). -->
+        <pose>-0.072088 0 -0.086568 0 0 0</pose>
         <mass>6.500</mass>
         <inertia>
           <ixx>1.213214</ixx>
@@ -146,7 +157,21 @@
            position/normal arrays and triangle indices are internally
            consistent. Fix: one <geometry>-per-file, same one-part-per-file
            pattern already proven working for left/right_elevon.dae -- 5
-           separate visuals below instead of one combined mesh. -->
+           separate visuals below instead of one combined mesh (at the
+           time: fuselaj+aripa_stg+aripa_dr+eleron_stg+eleron_dr).
+
+           Update 2: dropped eleron_stg/eleron_dr (the OLD Hirrus.dae
+           static elevon-shaped cutout, noted above as a "cosmetic double-
+           render, same accepted tradeoff as the propeller/elice overlap")
+           entirely -- it was overlapping the REAL, joint-driven
+           left/right_elevon visuals at rest, making it impossible to see
+           the real elevon mesh's own shape/twist clearly (specifically:
+           checking a report that the right elevon's inner edge sits lower
+           than its outer edge). No longer an "accepted tradeoff" once it's
+           actively hiding a real geometry question -- just fuselaj/
+           aripa_stg/aripa_dr now, matching the propeller's own resolution
+           (elice.dae replaced its own Hirrus.dae submesh reference the
+           same way). -->
       <visual name="base_link_visual_fuselaj">
         <pose>0 0 0 0 0 3.14159265</pose>
         <geometry><mesh><uri>model://hirrus/meshes/fuselaj.dae</uri></mesh></geometry>
@@ -160,16 +185,6 @@
       <visual name="base_link_visual_aripa_dr">
         <pose>0 0 0 0 0 3.14159265</pose>
         <geometry><mesh><uri>model://hirrus/meshes/aripa_dr.dae</uri></mesh></geometry>
-        <material><ambient>1.0 1.0 1.0 1.0</ambient><diffuse>1.0 1.0 1.0 1.0</diffuse></material>
-      </visual>
-      <visual name="base_link_visual_eleron_stg">
-        <pose>0 0 0 0 0 3.14159265</pose>
-        <geometry><mesh><uri>model://hirrus/meshes/eleron_stg.dae</uri></mesh></geometry>
-        <material><ambient>1.0 1.0 1.0 1.0</ambient><diffuse>1.0 1.0 1.0 1.0</diffuse></material>
-      </visual>
-      <visual name="base_link_visual_eleron_dr">
-        <pose>0 0 0 0 0 3.14159265</pose>
-        <geometry><mesh><uri>model://hirrus/meshes/eleron_dr.dae</uri></mesh></geometry>
         <material><ambient>1.0 1.0 1.0 1.0</ambient><diffuse>1.0 1.0 1.0 1.0</diffuse></material>
       </visual>
       <!-- Motor nacelle: a plain static visual (no joint -- Hirrus's
@@ -269,11 +284,11 @@
          flush on the wing trailing edge, matches the real mesh silhouette
          (previously a red box, still red for visibility, but now the
          right shape/size at the right hinge). base_link's own whole-file
-         visual above still bakes in the OLD Hirrus.dae eleron_stg/dr
-         geometry too (that extraction problem is about a different
-         source file and is unrelated/unfixed) -- a cosmetic double-render
-         at rest, same accepted tradeoff as the propeller/elice overlap;
-         only THIS visual here actually moves with the joint. -->
+         visual used to also bake in the OLD Hirrus.dae eleron_stg/dr
+         geometry (a cosmetic double-render, same tradeoff as the
+         propeller/elice overlap) -- since removed (see base_link_visual's
+         own comment), so only THIS visual here renders the elevon at all,
+         and it's the only one that actually moves with the joint. -->
     <link name="left_elevon">
       <inertial>
         <mass>0.00000001</mass>
@@ -848,9 +863,9 @@
         <servo_min>1100</servo_min>
         <servo_max>1900</servo_max>
         <type>POSITION</type>
-        <p_gain>100.0</p_gain>
-        <i_gain>20</i_gain>
-        <d_gain>1.0</d_gain>
+        <p_gain>30.0</p_gain>
+        <i_gain>5</i_gain>
+        <d_gain>5.0</d_gain>
         <i_max>5</i_max>
         <i_min>-5</i_min>
         <cmd_max>25.0</cmd_max>
@@ -864,9 +879,9 @@
         <servo_min>1100</servo_min>
         <servo_max>1900</servo_max>
         <type>POSITION</type>
-        <p_gain>100.0</p_gain>
-        <i_gain>20</i_gain>
-        <d_gain>1.0</d_gain>
+        <p_gain>30.0</p_gain>
+        <i_gain>5</i_gain>
+        <d_gain>5.0</d_gain>
         <i_max>5</i_max>
         <i_min>-5</i_min>
         <cmd_max>25.0</cmd_max>
