@@ -316,34 +316,30 @@
          <pose> alone places it correctly (no double offset). Spins about
          the model's local X (fore-aft) axis -- the raw mesh's disk already
          lies in the Y-Z plane at this station. -->
-    <!-- 3deg yaw ("right thrust"-style motor offset, same technique real
-         tractor singles use to counter torque/gyroscopic yaw tendency,
-         adapted here for a pusher): the propeller link's own pose carries
-         the offset, so everything defined in ITS local frame -- the
-         joint's spin axis (xyz 1 0 0, read in the child link's frame),
-         the visual, and the LiftDrag blades' cp/forward/upward -- cants
-         together as one rigid unit. Thrust (~90N) times sin(3deg) gives a
-         ~4.7N side force acting well aft of the CG (propeller at
-         x=-0.495), producing a yawing moment to counteract the
-         propeller's own reaction/gyroscopic yaw tendency.
-         Tested live at this sign (+3deg) with propeller_joint's damping
-         at its normal 0.002: heading holds rock-steady (357.00 -> 356.93
-         over 25s) and full-throttle groundspeed still caps at the same
-         6.46 m/s as with no offset at all -- so this is confirmed SAFE
-         (doesn't destabilize anything) but UNPROVEN to help; it's not
-         what's capping the ground-roll speed (see hirrus.parm's own
-         "15 m/s" investigation notes). Kept as standard practice, not a
-         verified fix. The opposite sign (-3deg) was also tried and was
-         equally inert on speed under stable damping.
-         Separately (and NOT part of this offset): reducing this joint's
-         damping to try to free up torque budget was tested and made
-         things much worse -- the aircraft span through nearly every
-         heading continuously instead of holding a straight roll. Whatever
-         is going on with the propeller's reaction-torque coupling to the
-         airframe, the current damping=0.002 is doing real stabilizing
-         work; don't lower it without re-verifying live. -->
+    <!-- 3deg thrust-line yaw offset was tried here ("right thrust"-style
+         motor offset, adapted for a pusher) and reverted back to 0.
+         Tested SAFE at the time under the old VELOCITY-controlled prop
+         (~90N thrust, so ~4.7N side force) -- rock-steady heading, no
+         effect on the then-current 6.46 m/s speed cap either way. But
+         that test never covered the propulsion fix below (VELOCITY ->
+         EFFORT, see channel="2"'s own comment), which raised real thrust
+         to ~240N at multiplier=6.0 -- the SAME 3deg offset there is a
+         ~12.7N side force, and the reported symptom after both changes
+         landed together was the aircraft spinning in place instead of
+         accelerating. Pulled the offset back out rather than re-deriving
+         a smaller one for the new thrust level -- if it's wanted again,
+         it needs to be sized against whatever multiplier is actually in
+         use, not the old ~90N figure.
+         Separately (and unaffected by this revert): reducing
+         propeller_joint's damping to try to free up VELOCITY control's
+         torque budget was tested (back when VELOCITY was still in use)
+         and made things much worse -- the aircraft spun through nearly
+         every heading continuously instead of holding a straight roll.
+         Whatever is going on with the propeller's reaction-torque
+         coupling to the airframe, damping=0.002 (below) was doing real
+         stabilizing work; don't lower it without re-verifying live. -->
     <link name="propeller">
-      <pose>-0.495 0 -0.06 0 0 0.0523599</pose>
+      <pose>-0.495 0 -0.06 0 0 0</pose>
       <inertial>
         <pose>0 0 0 0 0 0</pose>
         <mass>0.005</mass>
@@ -374,22 +370,19 @@
           <izz>0.000167604</izz>
         </inertia>
       </inertial>
-      <visual name="visual">
-        <pose>0 0 0 0 0 3.14159265</pose>
-        <geometry>
-          <mesh>
-            <uri>model://hirrus/meshes/Hirrus.dae</uri>
-            <submesh>
-              <name>elice</name>
-              <center>true</center>
-            </submesh>
-          </mesh>
-        </geometry>
-        <material>
-          <ambient>0.175 0.175 0.175 1.0</ambient>
-          <diffuse>0.175 0.175 0.175 1.0</diffuse>
-        </material>
-      </visual>
+      <!-- Hirrus.dae's "elice" submesh visual removed from here on
+           purpose -- it was the second half of a known double-render
+           (base_link's own whole-file visual already bakes in a static
+           copy of this same prop, unmoving; this one was the only part
+           that actually spun with the joint). No propeller visual on
+           this link now, matching left/right_elevon's own pattern of
+           getting real Hirrus249.blend-sourced geometry (see those
+           links' own comments) rather than leaving the old Hirrus.dae
+           double-render in place -- the ~CS_SPINNER object from that
+           same blend file is the follow-up replacement, not done yet.
+           Until then the only visible propeller is base_link's own
+           static copy (motionless, cosmetically wrong once spinning, but
+           not nothing). -->
       <gravity>1</gravity>
       <velocity_decay />
       <self_collide>0</self_collide>
@@ -840,23 +833,43 @@
              ~5000 rad/s the damping term (linear in omega) dominates the
              aero term (quadratic) by orders of magnitude, so omega is
              essentially just multiplier/damping.
-             multiplier=6.0 (omega settles ~2745-2750 rad/s, live-verified
-             stable, zero oscillation) took ground-roll speed from the old
-             6.47 m/s cap to 12+ m/s -- confirmed via joint_state + VFR_HUD
-             together. Groundspeed then peaked ~12.15 m/s and fell back
-             (12.15 -> 9.58 -> 6.78) while propeller velocity stayed rock
-             steady the whole time -- almost certainly a real liftoff
-             (12 m/s is enough dynamic pressure to generate real lift on
-             this wing) followed by an uncontrolled pitch excursion, since
-             this was tested in MANUAL with the pitch stick held dead
-             center, not a real pilot/autopilot managing rotation. That's
-             a separate flight-dynamics question now, not a propulsion
-             one -- thrust is no longer the bottleneck. Earlier failed
-             attempt used multiplier=0.178 (solving only the aerodynamic
-             term, forgetting damping) -- prop coasted to a dead stop
-             instead of holding any RPM, exactly what that arithmetic
-             mistake predicts once you redo it including damping. -->
-        <multiplier>6.0</multiplier>
+             multiplier=3.78 (omega settles ~1690-1700 rad/s) is the
+             current, VERIFIED-SAFE value: live-tested for a full 32s,
+             heading held dead steady at 357.00 the entire time (zero
+             drift) and groundspeed climbed cleanly to a stable 5.80 m/s
+             plateau (confirmed genuinely flat, not still creeping --
+             re-tested longer than the first pass that thought it might
+             still be rising).
+             Higher values were tried for more speed and hit a real,
+             narrow stability wall: multiplier=6.0 (omega ~2745-2750
+             rad/s, ~240N thrust, an unrealistic ~3.8:1 thrust-to-weight
+             on this 6.5kg airframe) reached 12+ m/s briefly but then the
+             aircraft span through nearly every heading continuously
+             instead of flying straight. multiplier=4.7 -- only 25% above
+             the safe value -- reproduced the SAME wild spin. The 3deg
+             thrust-line offset elsewhere in this file was tried both
+             present and removed at multiplier=6.0 and made no difference
+             either way, ruling it out as the cause.
+             Real likely cause: EFFORT is a STEADY applied torque, and by
+             Newton's third law the airframe gets an equal steady
+             REACTION torque about the prop's own (roll) axis the whole
+             time it's spinning -- unlike the old VELOCITY controller,
+             which only touched its 8 N-m torque cap intermittently while
+             oscillating, this is continuous. This airframe's roll/yaw
+             stability margin against that steady reaction torque is
+             apparently thin enough that the gap between "stable" (3.78)
+             and "spins constantly" (4.7) is small. Pushing further speed
+             out of this propulsion setup needs the actual roll/yaw
+             stability margin addressed first (why is it so thin, and
+             can wheel/ground contact or aero stability absorb more
+             reaction torque) -- turning the multiplier up alone hits
+             this wall fast and isn't a path to more speed by itself.
+             Earlier failed attempt used multiplier=0.178 (solving only
+             the aerodynamic term, forgetting damping) -- prop coasted to
+             a dead stop instead of holding any RPM, exactly what that
+             arithmetic mistake predicts once you redo it including
+             damping. -->
+        <multiplier>3.78</multiplier>
         <offset>0</offset>
         <servo_min>1100</servo_min>
         <servo_max>1900</servo_max>
