@@ -304,8 +304,34 @@
          <pose> alone places it correctly (no double offset). Spins about
          the model's local X (fore-aft) axis -- the raw mesh's disk already
          lies in the Y-Z plane at this station. -->
+    <!-- 3deg yaw ("right thrust"-style motor offset, same technique real
+         tractor singles use to counter torque/gyroscopic yaw tendency,
+         adapted here for a pusher): the propeller link's own pose carries
+         the offset, so everything defined in ITS local frame -- the
+         joint's spin axis (xyz 1 0 0, read in the child link's frame),
+         the visual, and the LiftDrag blades' cp/forward/upward -- cants
+         together as one rigid unit. Thrust (~90N) times sin(3deg) gives a
+         ~4.7N side force acting well aft of the CG (propeller at
+         x=-0.495), producing a yawing moment to counteract the
+         propeller's own reaction/gyroscopic yaw tendency.
+         Tested live at this sign (+3deg) with propeller_joint's damping
+         at its normal 0.002: heading holds rock-steady (357.00 -> 356.93
+         over 25s) and full-throttle groundspeed still caps at the same
+         6.46 m/s as with no offset at all -- so this is confirmed SAFE
+         (doesn't destabilize anything) but UNPROVEN to help; it's not
+         what's capping the ground-roll speed (see hirrus.parm's own
+         "15 m/s" investigation notes). Kept as standard practice, not a
+         verified fix. The opposite sign (-3deg) was also tried and was
+         equally inert on speed under stable damping.
+         Separately (and NOT part of this offset): reducing this joint's
+         damping to try to free up torque budget was tested and made
+         things much worse -- the aircraft span through nearly every
+         heading continuously instead of holding a straight roll. Whatever
+         is going on with the propeller's reaction-torque coupling to the
+         airframe, the current damping=0.002 is doing real stabilizing
+         work; don't lower it without re-verifying live. -->
     <link name="propeller">
-      <pose>-0.495 0 -0.06 0 0 0</pose>
+      <pose>-0.495 0 -0.06 0 0 0.0523599</pose>
       <inertial>
         <pose>0 0 0 0 0 0</pose>
         <mass>0.005</mass>
