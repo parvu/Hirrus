@@ -358,27 +358,19 @@
       <pose>-0.495 0 -0.06 0 0 0</pose>
       <inertial>
         <pose>0 0 0 0 0 0</pose>
-        <mass>0.005</mass>
+        <!-- 12x7 prop (12in diameter, 7in pitch -- standard RC nomenclature):
+             mass 0.018kg, a plausible weight for a 12in nylon/plastic prop
+             (was 0.005kg, sized for the old ~8in prop). ixx (the ONLY
+             inertia component that matters -- propeller_joint is a 1-DOF
+             revolute about local X, so only the spin-axis inertia enters
+             the joint's angular-acceleration equation) modeled as a rod
+             of length = diameter: (1/12)*0.018*0.3048^2 = 1.394e-04.
+             iyy/izz left as inherited placeholders (tricopter_ap leftovers,
+             never derived for this geometry) -- they don't affect this
+             joint's dynamics either way. -->
+        <mass>0.018</mass>
         <inertia>
-          <!-- ixx (the ONLY component that matters here -- propeller_joint
-               is a 1-DOF revolute about local X, so only the spin-axis
-               inertia enters the joint's angular-acceleration equation)
-               was 9.75e-07: modeled as a ~4.8cm rod ((1/12)*m*L^2 solved
-               backwards), way smaller than this prop's own aerodynamic
-               radius (the LiftDrag blades' cp sits at 0.0724m, so the
-               real blade tip is further out still). At that inertia, the
-               VELOCITY control's 8 N-m torque cap changed the joint's
-               velocity by ~8000 rad/s in a SINGLE 1ms physics step --
-               the PID could never converge, it just slammed straight
-               past the 1800 rad/s target every step. Measured live:
-               propeller_joint oscillating between ~560 and ~2860 rad/s
-               instead of holding ~1800, tanking the time-averaged thrust
-               (proportional to velocity^2) -- the real cause of the
-               plane plateauing around 9 m/s at full throttle regardless
-               of mode. Recomputed as a ~0.2m (20cm) two-blade rod at the
-               same 0.005kg mass, consistent with the 0.0724m cp radius:
-               (1/12)*0.005*0.2^2 = 1.667e-05. -->
-          <ixx>1.667e-05</ixx>
+          <ixx>1.394e-04</ixx>
           <ixy>0</ixy>
           <ixz>0</ixz>
           <iyy>0.000166704</iyy>
@@ -425,22 +417,30 @@
          not a gear-modeling one). Real (non-zero) rolling friction, unlike
          the earlier frictionless ramp attempt -- this is a normal wheeled
          takeoff roll now, not a slide launch.
-         Wheel radius 0.05m, axle at local z=-0.15 -> wheel bottom at
-         z=-0.20, well clear of the fuselage mesh's own lowest point
-         (-0.1341, see model.sdf's earlier catapult-comment history) so
-         the belly itself never touches the ground first. -->
+         Wheels shrunk and made weightless (mass 0.001kg vs. the 6.5kg
+         airframe -- negligible, same spirit as the elevon links' own
+         near-zero mass, just not pushed all the way to 1e-8 since these
+         are real load-bearing contacts under the vehicle's full weight,
+         not just joint-position indicators; an extremely light body in
+         an active, stiff contact is a real numerical-stability risk).
+         Axle heights (below) were shifted to keep the same wheel-BOTTOM
+         clearance as before despite the smaller radius, so
+         worlds/hirrus_runway.sdf's own spawn-height math (which assumes
+         a specific wheel-bottom offset) doesn't need re-deriving. -->
     <link name="nose_wheel">
-      <!-- z=-0.16, radius 0.05 -> bottom at -0.21, level with the main
-           wheels' own bottom (axle -0.15, radius 0.06 -> also -0.21). -->
-      <pose>0.35 0 -0.16 0 0 0</pose>
+      <!-- radius 0.05->0.03. axle z=-0.16->-0.18 so bottom stays at
+           -0.21 (unchanged), still clear of the fuselage mesh's own
+           lowest point (-0.1341, see model.sdf's earlier catapult-comment
+           history). -->
+      <pose>0.35 0 -0.18 0 0 0</pose>
       <inertial>
-        <mass>0.02</mass>
-        <inertia><ixx>0.00002</ixx><iyy>0.00002</iyy><izz>0.00002</izz></inertia>
+        <mass>0.001</mass>
+        <inertia><ixx>4.5e-07</ixx><iyy>4.5e-07</iyy><izz>4.5e-07</izz></inertia>
       </inertial>
       <collision name="nose_wheel_collision">
         <pose>0 0 0 1.5707963 0 0</pose>
         <geometry>
-          <cylinder><radius>0.05</radius><length>0.02</length></cylinder>
+          <cylinder><radius>0.03</radius><length>0.015</length></cylinder>
         </geometry>
         <surface>
           <friction>
@@ -451,7 +451,7 @@
       <visual name="nose_wheel_visual">
         <pose>0 0 0 1.5707963 0 0</pose>
         <geometry>
-          <cylinder><radius>0.05</radius><length>0.02</length></cylinder>
+          <cylinder><radius>0.03</radius><length>0.015</length></cylinder>
         </geometry>
         <material>
           <ambient>0.1 0.1 0.1 1.0</ambient>
@@ -468,16 +468,18 @@
       </axis>
     </joint>
 
+    <!-- radius 0.06->0.035, mass 0.03->0.001 (weightless, see nose_wheel's
+         own comment). axle z=-0.15->-0.175 so bottom stays at -0.21. -->
     <link name="left_main_wheel">
-      <pose>0.0 0.3 -0.15 0 0 0</pose>
+      <pose>0.0 0.3 -0.175 0 0 0</pose>
       <inertial>
-        <mass>0.03</mass>
-        <inertia><ixx>0.00003</ixx><iyy>0.00003</iyy><izz>0.00003</izz></inertia>
+        <mass>0.001</mass>
+        <inertia><ixx>6.125e-07</ixx><iyy>6.125e-07</iyy><izz>6.125e-07</izz></inertia>
       </inertial>
       <collision name="left_main_wheel_collision">
         <pose>0 0 0 1.5707963 0 0</pose>
         <geometry>
-          <cylinder><radius>0.06</radius><length>0.025</length></cylinder>
+          <cylinder><radius>0.035</radius><length>0.018</length></cylinder>
         </geometry>
         <surface>
           <friction>
@@ -488,7 +490,7 @@
       <visual name="left_main_wheel_visual">
         <pose>0 0 0 1.5707963 0 0</pose>
         <geometry>
-          <cylinder><radius>0.06</radius><length>0.025</length></cylinder>
+          <cylinder><radius>0.035</radius><length>0.018</length></cylinder>
         </geometry>
         <material>
           <ambient>0.1 0.1 0.1 1.0</ambient>
@@ -506,15 +508,15 @@
     </joint>
 
     <link name="right_main_wheel">
-      <pose>0.0 -0.3 -0.15 0 0 0</pose>
+      <pose>0.0 -0.3 -0.175 0 0 0</pose>
       <inertial>
-        <mass>0.03</mass>
-        <inertia><ixx>0.00003</ixx><iyy>0.00003</iyy><izz>0.00003</izz></inertia>
+        <mass>0.001</mass>
+        <inertia><ixx>6.125e-07</ixx><iyy>6.125e-07</iyy><izz>6.125e-07</izz></inertia>
       </inertial>
       <collision name="right_main_wheel_collision">
         <pose>0 0 0 1.5707963 0 0</pose>
         <geometry>
-          <cylinder><radius>0.06</radius><length>0.025</length></cylinder>
+          <cylinder><radius>0.035</radius><length>0.018</length></cylinder>
         </geometry>
         <surface>
           <friction>
@@ -525,7 +527,7 @@
       <visual name="right_main_wheel_visual">
         <pose>0 0 0 1.5707963 0 0</pose>
         <geometry>
-          <cylinder><radius>0.06</radius><length>0.025</length></cylinder>
+          <cylinder><radius>0.035</radius><length>0.018</length></cylinder>
         </geometry>
         <material>
           <ambient>0.1 0.1 0.1 1.0</ambient>
@@ -684,12 +686,20 @@
     <!-- Propeller thrust rig: ArduPilotPlugin's VELOCITY control only
          spins propeller_joint (zero lift on its own); these two LiftDrag
          blocks at opposite cp (so off-axis moments cancel) convert that
-         spin into forward thrust. Coefficients reused verbatim from
-         tricopter_ap's own rotor thrust rigs (already sized for a
-         same-order-of-magnitude prop on this airframe); cp/forward/upward
-         permuted for this prop's spin axis (X here vs Z there). -->
+         spin into forward thrust. cp/forward/upward permuted for this
+         prop's spin axis (X here vs Z there).
+         12x7 prop (12in diameter, 7in pitch): cp at 75% of the 0.1524m
+         tip radius = 0.1143m (was 0.0724m, an ~8in-diameter prop's own
+         station). area scaled by (new_cp/old_cp)^2 = 0.004*(0.1143/
+         0.0724)^2 = 0.00997, keeping the same blade-element proportions.
+         a0 (this blade-element hack's stand-in for geometric pitch angle)
+         recomputed from the real pitch definition, atan(pitch/(2*pi*cp)):
+         atan(0.1778/(2*pi*0.1143)) = 0.2427 rad (13.9deg), replacing the
+         old 0.3 rad that had no stated pitch behind it. cla/cda/stall
+         coefficients unchanged (still tricopter_ap's rotor placeholders,
+         not re-derived for this specific prop's airfoil). -->
     <plugin filename="gz-sim-lift-drag-system" name="gz::sim::systems::LiftDrag">
-      <a0>0.3</a0>
+      <a0>0.2427</a0>
       <alpha_stall>1.4</alpha_stall>
       <cla>4.2500</cla>
       <cda>0.10</cda>
@@ -697,15 +707,15 @@
       <cla_stall>-0.025</cla_stall>
       <cda_stall>0.0</cda_stall>
       <cma_stall>0.0</cma_stall>
-      <area>0.004</area>
+      <area>0.00997</area>
       <air_density>1.2041</air_density>
-      <cp>0 0.0724 0</cp>
+      <cp>0 0.1143 0</cp>
       <forward>0 0 1</forward>
       <upward>1 0 0</upward>
       <link_name>propeller</link_name>
     </plugin>
     <plugin filename="gz-sim-lift-drag-system" name="gz::sim::systems::LiftDrag">
-      <a0>0.3</a0>
+      <a0>0.2427</a0>
       <alpha_stall>1.4</alpha_stall>
       <cla>4.2500</cla>
       <cda>0.10</cda>
@@ -713,9 +723,9 @@
       <cla_stall>-0.025</cla_stall>
       <cda_stall>0.0</cda_stall>
       <cma_stall>0.0</cma_stall>
-      <area>0.004</area>
+      <area>0.00997</area>
       <air_density>1.2041</air_density>
-      <cp>0 -0.0724 0</cp>
+      <cp>0 -0.1143 0</cp>
       <forward>0 0 -1</forward>
       <upward>1 0 0</upward>
       <link_name>propeller</link_name>
