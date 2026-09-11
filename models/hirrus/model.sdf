@@ -310,7 +310,25 @@
         <pose>0 0 0 0 0 0</pose>
         <mass>0.005</mass>
         <inertia>
-          <ixx>9.75e-07</ixx>
+          <!-- ixx (the ONLY component that matters here -- propeller_joint
+               is a 1-DOF revolute about local X, so only the spin-axis
+               inertia enters the joint's angular-acceleration equation)
+               was 9.75e-07: modeled as a ~4.8cm rod ((1/12)*m*L^2 solved
+               backwards), way smaller than this prop's own aerodynamic
+               radius (the LiftDrag blades' cp sits at 0.0724m, so the
+               real blade tip is further out still). At that inertia, the
+               VELOCITY control's 8 N-m torque cap changed the joint's
+               velocity by ~8000 rad/s in a SINGLE 1ms physics step --
+               the PID could never converge, it just slammed straight
+               past the 1800 rad/s target every step. Measured live:
+               propeller_joint oscillating between ~560 and ~2860 rad/s
+               instead of holding ~1800, tanking the time-averaged thrust
+               (proportional to velocity^2) -- the real cause of the
+               plane plateauing around 9 m/s at full throttle regardless
+               of mode. Recomputed as a ~0.2m (20cm) two-blade rod at the
+               same 0.005kg mass, consistent with the 0.0724m cp radius:
+               (1/12)*0.005*0.2^2 = 1.667e-05. -->
+          <ixx>1.667e-05</ixx>
           <ixy>0</ixy>
           <ixz>0</ixz>
           <iyy>0.000166704</iyy>
@@ -664,6 +682,13 @@
     <plugin filename="gz-sim-joint-state-publisher-system" name="gz::sim::systems::JointStatePublisher">
       <joint_name>left_elevon_joint</joint_name>
       <joint_name>right_elevon_joint</joint_name>
+      <!-- propeller_joint doesn't NEED this (see comment above -- its
+           VELOCITY control already gets JointVelocity from physics), but
+           listing it here also makes gz publish its velocity on this same
+           topic, which is otherwise the only way to read prop RPM live
+           for debugging (SERVO_OUTPUT_RAW only shows the commanded PWM,
+           not the actual achieved spin). -->
+      <joint_name>propeller_joint</joint_name>
     </plugin>
 
     <!-- Catapult launch (a manually-fired ApplyLinkWrench impulse) shelved
