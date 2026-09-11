@@ -207,18 +207,30 @@
       </sensor>
     </link>
 
-    <!-- Elevon anchor links: their real geometry (eleron_stg/eleron_dr)
-         is still baked, static, into base_link's whole-file visual above
-         (gz's submesh extraction is confirmed broken for those two parts
-         specifically -- see that visual's own comment; re-deriving them
-         from Hirrus249.blend needs actual rendering to verify scale/
-         orientation, not just computed off its raw transform matrices,
-         so that's a follow-up, not done here). Each link gets a plain
-         box visual instead: NOT a claim about the real flap's shape, a
-         testing aid so the joint's actual commanded angle is visible
-         live in the gz GUI / webview, independent of the frozen render
-         above. One edge sits on the hinge line and it extends aft
-         (-X, trailing edge), so it visibly fans up/down with the joint. -->
+    <!-- Elevon anchor links: real flap geometry now, extracted from
+         Hirrus249.blend's separated ~CS_LMA/~CS_RMA objects (a cleaner,
+         newer source model with elevons/propeller/motor as their own
+         objects, unlike Hirrus.dae's single fused mesh where gz's
+         submesh extraction is confirmed broken for these specific
+         parts). Exported to left_elevon.dae/right_elevon.dae by
+         re-baking each mesh's own node transform (scale + a 90deg-about-Z
+         axis remap from the blend file's own coordinate convention to
+         this model's body frame -- verified empirically: LMA/RMA's
+         transformed bounding-box centers land within 7mm of this joint's
+         own long-trusted hinge position in X/Y, and within 1mm in Z after
+         calibrating out a constant ~77mm origin-datum offset between the
+         two source files), then recentering each to its own local origin
+         so the visual's own <pose> IS that computed centroid with no
+         further rotation needed (the mesh is already body-frame-aligned
+         on export). Live-verified via screenshot: elevon shape now sits
+         flush on the wing trailing edge, matches the real mesh silhouette
+         (previously a red box, still red for visibility, but now the
+         right shape/size at the right hinge). base_link's own whole-file
+         visual above still bakes in the OLD Hirrus.dae eleron_stg/dr
+         geometry too (that extraction problem is about a different
+         source file and is unrelated/unfixed) -- a cosmetic double-render
+         at rest, same accepted tradeoff as the propeller/elice overlap;
+         only THIS visual here actually moves with the joint. -->
     <link name="left_elevon">
       <inertial>
         <mass>0.00000001</mass>
@@ -229,9 +241,9 @@
         <pose>0 0.34 0 0 0 0</pose>
       </inertial>
       <visual name="left_elevon_visual">
-        <pose>-0.392 1.2425 -0.111 0 0 0</pose>
+        <pose>-0.421438 1.242670 -0.111046 0 0 0</pose>
         <geometry>
-          <box><size>0.15 0.5 0.01</size></box>
+          <mesh><uri>model://hirrus/meshes/left_elevon.dae</uri></mesh>
         </geometry>
         <material>
           <ambient>1.0 0.0 0.0 1.0</ambient>
@@ -249,9 +261,9 @@
         <pose>0 -0.34 0 0 0 0</pose>
       </inertial>
       <visual name="right_elevon_visual">
-        <pose>-0.392 -1.2425 -0.111 0 0 0</pose>
+        <pose>-0.422597 -1.240689 -0.109595 0 0 0</pose>
         <geometry>
-          <box><size>0.15 0.5 0.01</size></box>
+          <mesh><uri>model://hirrus/meshes/right_elevon.dae</uri></mesh>
         </geometry>
         <material>
           <ambient>1.0 0.0 0.0 1.0</ambient>
