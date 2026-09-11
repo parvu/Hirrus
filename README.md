@@ -22,43 +22,23 @@ environment):
 
 ## Fly it
 
-Four terminals. `run_sitl.sh` only starts `gz sim`; SITL and the browser
-viewer are separate processes so any of them can be restarted
-independently.
+Two terminals: `./run_sitl.sh` (gz sim + ArduPilot SITL together) and,
+if you want the browser viewer, `./run_webview.sh`.
 
 ```bash
-# Terminal 1: Gazebo (headless -- see run_sitl.sh's own comment for why)
+# Terminal 1: gz sim + ArduPilot SITL. Starts gz on worlds/hirrus_runway.sdf
+# then sim_vehicle.py against it (--custom-location matches that world's
+# <spherical_coordinates>). Ctrl-C stops both. Pass --no-sitl for gz only
+# (e.g. when a SITL on the Windows host connects instead -- see the
+# fdm_addr=0.0.0.0 comment in models/hirrus/model.sdf).
 ./run_sitl.sh
 ```
 
 ```bash
-# Terminal 2: ArduPilot SITL. sim_vehicle.py isn't on PATH by default --
-# it lives inside the ardupilot checkout. --custom-location matches
-# worlds/hirrus_runway.sdf's own <spherical_coordinates> (lat,lon,alt,
-# heading); leaving it out would default to CMAC, on the other side of
-# the planet from where the runway actually is.
-$HOME/ardupilot/Tools/autotest/sim_vehicle.py -v ArduPlane --model JSON \
-  --add-param-file=$HOME/Hirrus/hirrus.parm \
-  --custom-location=44.39361401276187,25.941499548422655,85.2,0 \
-  --map --console
-```
-
-```bash
-# Terminal 3: browser viewer's Gazebo websocket bridge (scene stream).
-# `gz launch` isn't a registered subcommand on this system's (ROS-vendored)
-# `gz` CLI -- call the actual binary directly instead (positional arg, no
-# -f flag).
-source /opt/ros/jazzy/setup.bash
-cd $HOME/Hirrus/web_viewer
-/usr/lib/x86_64-linux-gnu/gz/launch7/gz-launch websocket.gzlaunch
-```
-
-```bash
-# Terminal 4: control server (static files + RC-override manual control).
-# Plain pymavlink, no ROS2/MAVROS -- talks to SITL's MAVLink TCP port
-# (5760) directly.
-cd $HOME/Hirrus/web_viewer
-python3 control_server.py 8080
+# Terminal 2 (optional): browser viewer -- gz-launch websocket bridge
+# (scene stream) + the pymavlink control server. Attaches to the already-
+# running gz + SITL from Terminal 1.
+./run_webview.sh
 ```
 
 Open `http://localhost:8080`. Arm, switch to `FBWA`, throttle up, and it
@@ -76,12 +56,12 @@ explicit stick/RC command.
 
 ## Mission Planner / a second GCS
 
-SITL exposes three MAVLink TCP ports: **5760** (SERIAL0, also used by
-`control_server.py` -- confirmed live that it accepts multiple simultaneous
-clients, so this is safe to share), 5762 and 5763 (SERIAL1/2). The latter
-two don't open until *something* has connected to 5760 first (ArduPilot's
-own boot sequence gates on it) -- just use 5760 unless you specifically
-need a second, independent connection.
+`run_sitl.sh` runs `sim_vehicle.py`, whose MAVProxy owns **5760** (SERIAL0).
+SITL also exposes **5762** and **5763** (SERIAL1/2), which open once
+MAVProxy has connected to 5760. The web viewer's `control_server.py`
+defaults to **5763** so it isn't contending with MAVProxy over 5760.
+Connect Mission Planner (or any other GCS) to **5762**, or to MAVProxy's
+own `udp:127.0.0.1:14550` / `14551` outputs.
 
 ## Known gaps
 

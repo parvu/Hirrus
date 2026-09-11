@@ -14,6 +14,21 @@ SERVO2_FUNCTION 78
 SERVO1_REVERSED 0
 SERVO2_REVERSED 0
 SERVO3_FUNCTION 70
+SERVO4_FUNCTION 0
+
+# RC1/2/3 as if the transmitter had been calibrated: MIN/MAX = 1100/1900,
+# the real 1000-2000 band's inner 100us safety margin on each end (a real
+# receiver rarely hits the absolute extremes). SERVO1/2/3_MIN/MAX already
+# default to this same 1100/1900 band -- see model.sdf's own elevon/
+# throttle <control> comments for why the gz-side servo_min/max had to be
+# changed to match it (ArduPilot clips its own SERVO output to this range
+# before anything reaches gz, regardless of what PWM was sent in).
+RC1_MIN  1100
+RC1_MAX  1900
+RC2_MIN  1100
+RC2_MAX  1900
+RC3_MIN  1100
+RC3_MAX  1900
 
 # we need small INS_ACC offsets so INS is recognised as being calibrated
 INS_ACCOFFS_X   0.001
@@ -33,8 +48,33 @@ INS_GYR_CAL     0
 ARSPD_TYPE      0
 BATT_MONITOR    4
 
+# No airspeed sensor (ARSPD_TYPE 0), and gz's ArduPilotPlugin JSON FDM
+# doesn't send an airspeed field either. Without this, TECS's throttle
+# controller has NO speed feedback (AP_TECS.cpp: using_airspeed_sensor() ||
+# _use_synthetic_airspeed) -- in AUTO / TAKEOFF / CRUISE / FBWB it then
+# just parks throttle near TRIM_THROTTLE and never pushes to climb out or
+# accelerate past AIRSPEED_MIN (9 m/s by default -- exactly where the
+# ground roll was plateauing). SYNAIRSPEED=1 feeds TECS the EKF's
+# GPS-derived synthetic airspeed so auto-throttle modes actually regulate
+# speed. Manual/FBWA (pilot-stick throttle) never needed this.
+TECS_SYNAIRSPEED 1
+
+# Hold full throttle through the whole ground roll + initial climb, not
+# just the ~2 s TKOFF_THR_MAX_T default -- this airframe's stall/rotate
+# speed isn't measured yet, so give it plenty of runway acceleration
+# before TECS takes the throttle back.
+TKOFF_THR_MAX_T  8
+TRIM_THROTTLE    60
+
+# Speed envelope: placeholders until a real stall speed is flight-tested
+# (see README "Known gaps"). Set per pilot's call.
+AIRSPEED_MIN     15
+AIRSPEED_CRUISE  20
+AIRSPEED_MAX     32
+
 # No catapult/hand-launch auto-throttle params (TKOFF_THR_MINACC etc.) --
-# removed on purpose. Hirrus has real tricycle gear now and takes off
-# under commanded throttle on the runway; auto-throttle-on-acceleration
-# logic is an uncommanded-launch risk with no upside here (a bump/jolt
-# reading as a "launch" would open the throttle on its own).
+# left at their defaults on purpose. TKOFF_THR_MINACC defaults to 0, which
+# (ArduPlane/takeoff.cpp) skips the hand-launch acceleration gate entirely
+# and applies takeoff throttle immediately on a wheeled roll -- exactly
+# what's wanted here. Setting it nonzero would be an uncommanded-launch
+# risk (a bump reading as a "launch") with no upside for runway takeoffs.

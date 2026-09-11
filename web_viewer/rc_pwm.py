@@ -5,14 +5,20 @@ pwm_throttle/resolve_stick were already pure functions with no rclpy
 dependency; only arm()/set_mode() are rewritten here against pymavlink
 directly instead of mavros_msgs service clients.
 """
-# RC override PWM: 1500 centre, +/-500 at full stick deflection, the
-# standard 1000-2000 us band ArduPilot's RCn_MIN/MAX default to.
+# RC override PWM: 1500 centre, +/-400 at full stick deflection -- matches
+# hirrus.parm's RC1/2/3_MIN/MAX (1100/1900), not the raw 1000-2000 band a
+# receiver could physically produce. This used to be +/-500 (1000-2000),
+# which overshot RCn_MIN/MAX -- ArduPilot's norm_input() clamps that to the
+# same +/-1.0 either way, so full stick still worked, but the *reported*
+# RC/servo values never matched a "calibrated" 1100-1900 transmitter,
+# which is what was actually being asked for.
 RC_CENTER = 1500
-RC_SPAN = 500
-# Throttle's own PWM range: caps at 1900, not 2000 (RC_CENTER + RC_SPAN),
-# matching a real Mode 2 transmitter's ratcheted throttle gimbal.
-THROTTLE_MID = 1450
-THROTTLE_SPAN = 450
+RC_SPAN = 400
+# Throttle's own PWM range: same 1100-1900 calibrated band as the other
+# three channels (a real Mode 2 transmitter's ratcheted throttle gimbal
+# still travels its full physical range, it just isn't self-centering).
+THROTTLE_MID = 1500
+THROTTLE_SPAN = 400
 
 # ArduPlane custom mode numbers (ArduPlane/mode.h). No Q-modes here --
 # hirrus.parm configures a plain fixed-wing ArduPlane, not QuadPlane.
