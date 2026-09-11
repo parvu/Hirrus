@@ -92,7 +92,15 @@
 
     <include>
       <uri>model://runway</uri>
-      <pose degrees="true">-29 545 0 0 0 363</pose>
+      <!-- Rotated so the strip points NW (compass 315deg) per pilot's
+           request, was 363deg (pointing ~N, compass 357deg -- see the
+           empirical heading<->world-yaw mapping derived below). The
+           runway model's own "runway"/"airfield" visuals carry an extra
+           local yaw=90deg on top of this include's yaw (see the hirrus
+           include's own comment below), so the STRIP's effective world
+           yaw is include_yaw+90 -- solve for that being the compass-NW
+           direction, not this number directly. -->
+      <pose degrees="true">-29 545 0 0 0 45</pose>
     </include>
 
     <!-- Webview-only textured overlay for the runway's zebra/number
@@ -103,24 +111,34 @@
          "runway" visual's local plane pose on top of it. -->
     <include>
       <uri>model://runway_markings</uri>
-      <pose degrees="true">-29 545 0 0 0 363</pose>
+      <pose degrees="true">-29 545 0 0 0 45</pose>
     </include>
 
     <!-- Hirrus, at one end of the runway strip, longitudinal axis aligned
-         with it. Real heading = 93deg, NOT the include's own 363deg --
-         model://runway's VISUAL strip carries its own extra local
-         <pose>0 0 0 0 0 90</pose> on top of the include yaw (the
+         with it. Real heading = 135deg (NOT the runway include's own
+         45deg) -- model://runway's VISUAL strip carries its own extra
+         local <pose>0 0 0 0 0 90</pose> on top of the include yaw (the
          collision itself is an unbounded plane with no size at all, only
          the visual is the 1500x100 strip) -- missed that the first two
-         times, which is why nothing lined up. Strip center is the
-         include position (-29,545); half-length 750m along heading 93deg
-         puts the two ends at roughly (7.6,-154.0) and (-65.6,1244.0) --
-         placed at the first, nose pointed at the second (yaw=93,
-         inboard by 50m of the true end for margin). Z=-0.166: same
-         resting-flush arithmetic as before (base_link_collision's own
-         bottom sits at model_z+0.196, solved against the runway's flat
-         z=0 collision plane with a 3cm clearance) -- unaffected by the
-         heading fix, only X/Y/yaw changed. -->
+         times originally, which is why nothing lined up.
+
+         World-yaw <-> compass-heading mapping, ground-truthed via
+         ArduPilot's own VFR_HUD.heading with the aircraft sitting at
+         world yaw=93deg: that read back as compass heading 357 (~N), so
+         compass_heading = (90 - world_yaw) mod 360, i.e.
+         world_yaw = (90 - compass_heading) mod 360. For NW (315deg):
+         world_yaw = (90-315) mod 360 = 135deg -- matches the strip's own
+         effective yaw (45+90) above, as it always has (aircraft yaw =
+         strip yaw, nose down the runway).
+
+         Strip center is the include position (-29,545); half-length 750m
+         along the strip's own 135deg world yaw puts the two ends at
+         roughly (466.0,50.0) and (-524.0,1040.0) -- placed at the first
+         (same "which end" convention as the original 93deg placement:
+         center - 700*direction, 50m inboard of the true 750m end for
+         margin), nose pointed at the second. Z=0.24: unaffected by the
+         heading fix, only X/Y/yaw changed (see this same include's Z
+         derivation below, unedited). -->
     <include>
       <uri>model://hirrus</uri>
       <!-- Z=0.24. Every prior version of this comment (0.196, 0.036 above
@@ -135,7 +153,7 @@
          radius 0.06/0.05) -- solving model_z + (-0.21) = 0 (runway) +
          0.03 (clearance) gives model_z = 0.24. Empirically confirmed
          settle point (no clearance) was Z=0.21, consistent with this. -->
-      <pose degrees="true">7.635 -154.041 0.24 0 0 93</pose>
+      <pose degrees="true">465.975 50.025 0.24 0 0 135</pose>
     </include>
   </world>
 </sdf>
