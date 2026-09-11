@@ -132,18 +132,45 @@
            the mesh's own nose at +X). Upgrade path if gz's submesh
            extraction ever gets fixed: go back to per-part <submesh>
            visuals referencing Hirrus.dae directly instead of this
-           derived copy. -->
-      <visual name="base_link_visual">
+           derived copy.
+
+           Update: Hirrus_no_prop.dae (one file, 5 <geometry> elements/nodes
+           for fuselaj+aripa_stg+aripa_dr+eleron_stg+eleron_dr) rendered
+           fine in gz sim but never rendered in the webview -- three.js's
+           bundled r86 ColladaLoader chokes on a COLLADA doc with multiple
+           separate geometries (tens of thousands of spurious "vector is
+           undefined" BufferAttribute warnings, confirmed via a real
+           headless-browser load with per-request instrumentation showing
+           the flood starts exactly when this file loads, not before/with
+           any single-geometry file), even though each geometry's own
+           position/normal arrays and triangle indices are internally
+           consistent. Fix: one <geometry>-per-file, same one-part-per-file
+           pattern already proven working for left/right_elevon.dae -- 5
+           separate visuals below instead of one combined mesh. -->
+      <visual name="base_link_visual_fuselaj">
         <pose>0 0 0 0 0 3.14159265</pose>
-        <geometry>
-          <mesh>
-            <uri>model://hirrus/meshes/Hirrus_no_prop.dae</uri>
-          </mesh>
-        </geometry>
-        <material>
-          <ambient>1.0 1.0 1.0 1.0</ambient>
-          <diffuse>1.0 1.0 1.0 1.0</diffuse>
-        </material>
+        <geometry><mesh><uri>model://hirrus/meshes/fuselaj.dae</uri></mesh></geometry>
+        <material><ambient>1.0 1.0 1.0 1.0</ambient><diffuse>1.0 1.0 1.0 1.0</diffuse></material>
+      </visual>
+      <visual name="base_link_visual_aripa_stg">
+        <pose>0 0 0 0 0 3.14159265</pose>
+        <geometry><mesh><uri>model://hirrus/meshes/aripa_stg.dae</uri></mesh></geometry>
+        <material><ambient>1.0 1.0 1.0 1.0</ambient><diffuse>1.0 1.0 1.0 1.0</diffuse></material>
+      </visual>
+      <visual name="base_link_visual_aripa_dr">
+        <pose>0 0 0 0 0 3.14159265</pose>
+        <geometry><mesh><uri>model://hirrus/meshes/aripa_dr.dae</uri></mesh></geometry>
+        <material><ambient>1.0 1.0 1.0 1.0</ambient><diffuse>1.0 1.0 1.0 1.0</diffuse></material>
+      </visual>
+      <visual name="base_link_visual_eleron_stg">
+        <pose>0 0 0 0 0 3.14159265</pose>
+        <geometry><mesh><uri>model://hirrus/meshes/eleron_stg.dae</uri></mesh></geometry>
+        <material><ambient>1.0 1.0 1.0 1.0</ambient><diffuse>1.0 1.0 1.0 1.0</diffuse></material>
+      </visual>
+      <visual name="base_link_visual_eleron_dr">
+        <pose>0 0 0 0 0 3.14159265</pose>
+        <geometry><mesh><uri>model://hirrus/meshes/eleron_dr.dae</uri></mesh></geometry>
+        <material><ambient>1.0 1.0 1.0 1.0</ambient><diffuse>1.0 1.0 1.0 1.0</diffuse></material>
       </visual>
       <!-- Motor nacelle: a plain static visual (no joint -- Hirrus's
          single pusher motor doesn't tilt, unlike tricopter_ap's
@@ -378,19 +405,35 @@
           <izz>0.000167604</izz>
         </inertia>
       </inertial>
-      <!-- Hirrus.dae's "elice" submesh visual removed from here on
-           purpose -- it was the second half of a known double-render
-           (base_link's own whole-file visual already bakes in a static
-           copy of this same prop, unmoving; this one was the only part
-           that actually spun with the joint). No propeller visual on
-           this link now, matching left/right_elevon's own pattern of
-           getting real Hirrus249.blend-sourced geometry (see those
-           links' own comments) rather than leaving the old Hirrus.dae
-           double-render in place -- the ~CS_SPINNER object from that
-           same blend file is the follow-up replacement, not done yet.
-           Until then the only visible propeller is base_link's own
-           static copy (motionless, cosmetically wrong once spinning, but
-           not nothing). -->
+      <!-- Restored: this link's own "elice" submesh visual (removed for
+           a few commits while base_link's whole-file visual ALSO baked in
+           a static, non-spinning copy of the same prop -- that double-
+           render is what got removed instead, see base_link_visual's own
+           comment; this one always was the correctly-moving half). No
+           double-render now: base_link's own copy is genuinely gone
+           (Hirrus_no_prop.dae), so this is the only propeller visual left,
+           and it actually spins with the joint. Extracted to its own
+           elice.dae (same clean single-geometry export as left/right_elevon,
+           pre-centered, proper VERTEX/NORMAL index offsets) instead of
+           Hirrus.dae's <submesh> selector: gz-sim's own loader handles that
+           selector fine, but the webview's three.js ColladaLoader parses
+           the WHOLE multi-megabyte Hirrus.dae file (including every other
+           submesh) before pruning to the one node, and something in that
+           file's other geometry chokes it (tens of thousands of "vector is
+           undefined" BufferAttribute warnings, propeller never renders in
+           the browser). A standalone file sidesteps that entirely. -->
+      <visual name="propeller_visual">
+        <pose>0 0 0 0 0 3.14159265</pose>
+        <geometry>
+          <mesh>
+            <uri>model://hirrus/meshes/elice.dae</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>0.05 0.05 0.05 1.0</ambient>
+          <diffuse>0.05 0.05 0.05 1.0</diffuse>
+        </material>
+      </visual>
       <gravity>1</gravity>
       <velocity_decay />
       <self_collide>0</self_collide>
