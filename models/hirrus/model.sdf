@@ -937,8 +937,25 @@
              the aerodynamic term, forgetting damping) -- prop coasted to
              a dead stop instead of holding any RPM, exactly what that
              arithmetic mistake predicts once you redo it including
-             damping. -->
-        <multiplier>3.78</multiplier>
+             damping.
+
+             Retuned for a requested 8300 RPM target (869.16 rad/s) --
+             LOWER than the 3.78 setting above (~1690-1700 rad/s, i.e.
+             ~16000+ RPM). First pass used the "damping dominates" shortcut
+             from the note above (multiplier = damping*omega = 1.74), but
+             that assumed the OLD k=5.48e-08 aero-torque coefficient --
+             live-tested and it only reached 623 rad/s, not 869: the 12x7
+             LiftDrag retune elsewhere in this file changed the real k to
+             roughly 1.27e-06 (from that same test point: k = (multiplier -
+             damping*omega) / omega^2), ~23x larger, no longer negligible
+             at this omega. Resolving multiplier = damping*omega + k*omega^2
+             for omega=869.16 with that k gives multiplier=2.70 -- live-
+             tested and confirmed: settles at 857.4 rad/s (~8188 RPM, 1.4%
+             off target, close enough) with heading rock-steady (spawn
+             quaternion unchanged after 20s sustained full throttle -- no
+             spin, well clear of the instability wall documented above,
+             which triggers pushing omega much higher, not lower). -->
+        <multiplier>2.70</multiplier>
         <offset>0</offset>
         <servo_min>1100</servo_min>
         <servo_max>1900</servo_max>
