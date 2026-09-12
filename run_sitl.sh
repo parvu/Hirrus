@@ -77,5 +77,5 @@ sleep 5
 #"$HOME/ardupilot/Tools/autotest/sim_vehicle.py" -v ArduPlane --model JSON -f gazebo-zephyr\
 "$HOME/ardupilot/Tools/autotest/sim_vehicle.py" -v ArduPlane --model JSON --wipe --frame gazebo-zephyr --console \
   --add-param-file="$HIRRUS_DIR/hirrus.parm" \
-  --custom-location=44.39361401276187,25.941499548422655,85.2,0 \
+  --custom-location= 44.3920506,25.9414566, 85.2,0 \
   --no-rebuild
